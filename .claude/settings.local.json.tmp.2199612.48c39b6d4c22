@@ -10,7 +10,8 @@
       "Bash(npm start *)",
       "Bash(curl -s -o /dev/null -w \"login:%{http_code}\\\\n\" http://localhost:3000/login)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Sistema de reportes semanales Sala Situacional DIGESALUD *)"
+      "Bash(git commit -m 'Sistema de reportes semanales Sala Situacional DIGESALUD *)",
+      "Bash(git commit -m 'Bitácora de accesos: registro de logins \\(exitosos y fallidos\\), IP y navegador, visible en el panel del admin *)"
     ]
   }
 }

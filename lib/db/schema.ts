@@ -73,6 +73,18 @@ export const pacientes = sqliteTable("pacientes", {
   creadoEn: text("creado_en").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
+export const bitacora = sqliteTable("bitacora", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  rol: text("rol").notNull().default(""),
+  hospitalId: integer("hospital_id"),
+  accion: text("accion", { enum: ["login_exitoso", "login_fallido", "salir"] }).notNull(),
+  ip: text("ip").notNull().default(""),
+  navegador: text("navegador").notNull().default(""),
+  fecha: text("fecha").notNull().$defaultFn(() => new Date().toISOString()),
+});
+
+export type Bitacora = typeof bitacora.$inferSelect;
 export type Paciente = typeof pacientes.$inferSelect;
 export type Hospital = typeof hospitales.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;

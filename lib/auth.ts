@@ -15,6 +15,7 @@ export type Sesion = {
   rol: "admin" | "centro";
   hospitalId: number | null;
   nombre: string;
+  email: string;
 };
 
 export async function crearSesion(s: Sesion) {
@@ -51,5 +52,5 @@ export async function verificarClave(email: string, clave: string): Promise<Sesi
   const bcrypt = await import("bcryptjs");
   const [u] = await db.select().from(usuarios).where(eq(usuarios.email, email.toLowerCase().trim()));
   if (!u || !u.activo || !bcrypt.compareSync(clave, u.claveHash)) return null;
-  return { userId: u.id, rol: u.rol, hospitalId: u.hospitalId, nombre: u.nombre };
+  return { userId: u.id, rol: u.rol, hospitalId: u.hospitalId, nombre: u.nombre, email: u.email };
 }

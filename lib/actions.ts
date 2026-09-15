@@ -2,23 +2,49 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { headers } from "next/headers";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { hospitales, reportes } from "@/lib/db/schema";
+import { bitacora, hospitales, reportes } from "@/lib/db/schema";
 import { crearSesion, cerrarSesion, getSesion, verificarClave } from "@/lib/auth";
 
 export type EstadoForm = { error?: string; ok?: string };
 
+async function registrarBitacora(
+  email: string,
+  rol: string,
+  hospitalId: number | null,
+  accion: "login_exitoso" | "login_fallido" | "salir",
+) {
+  const h = await headers();
+  const ip =
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "";
+  await db.insert(bitacora).values({
+    email,
+    rol,
+    hospitalId,
+    accion,
+    ip,
+    navegador: (h.get("user-agent") ?? "").slice(0, 200),
+  });
+}
+
 export async function accionLogin(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const email = String(fd.get("email") ?? "");
+  const email = String(fd.get("email") ?? "").toLowerCase().trim();
   const clave = String(fd.get("clave") ?? "");
   const sesion = await verificarClave(email, clave);
-  if (!sesion) return { error: "Correo o clave incorrectos." };
+  if (!sesion) {
+    await registrarBitacora(email, "", null, "login_fallido");
+    return { error: "Correo o clave incorrectos." };
+  }
+  await registrarBitacora(email, sesion.rol, sesion.hospitalId, "login_exitoso");
   await crearSesion(sesion);
   redirect(sesion.rol === "admin" ? "/panel" : "/reportar");
 }
 
 export async function accionSalir() {
+  const sesion = await getSesion();
+  if (sesion) await registrarBitacora(sesion.email, sesion.rol, sesion.hospitalId, "salir");
   await cerrarSesion();
   redirect("/login");
 }
