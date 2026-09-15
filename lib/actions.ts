@@ -54,7 +54,7 @@ export async function accionSalir() {
 import { viernesDe } from "@/lib/fechas";
 
 // ─── Reporte semanal: se recalcula y envía solo al guardar cifras ───
-// autoverificar: lo que carga el propio admin entra directo como verificado.
+// autoverificar: sin flujo de aprobación — todo lo cargado entra verificado.
 export async function sincronizarReporte(
   hospitalId: number,
   semanaDesde: string,
@@ -186,18 +186,21 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
       semanaDesde,
       semanaHasta: viernesDe(semanaDesde),
       ...interv,
+      estado: "verificado",
+      verificadoEn: new Date().toISOString(),
     })
     .onConflictDoUpdate({
       target: [reportes.hospitalId, reportes.semanaDesde],
       set: {
         ...interv,
         semanaHasta: viernesDe(semanaDesde),
-        estado: "pendiente",
+        estado: "verificado",
+        verificadoEn: new Date().toISOString(),
         actualizadoEn: new Date().toISOString(),
       },
     });
 
-  await sincronizarReporte(sesion.hospitalId, semanaDesde);
+  await sincronizarReporte(sesion.hospitalId, semanaDesde, true);
   revalidatePath("/consultas");
   return { ok: `Cifras guardadas (${totalConsultas} consultas). Reporte enviado a verificación.` };
 }

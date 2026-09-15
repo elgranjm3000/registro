@@ -3,7 +3,6 @@ import { desc, eq, gte, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bitacora, hospitales, reportes } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
-import { accionRevisarReporte } from "@/lib/actions";
 import Encabezado from "@/components/Encabezado";
 import Graficos from "./Graficos";
 import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
@@ -45,7 +44,6 @@ export default async function Panel() {
     .limit(12);
 
   const reportados = new Map(deLaSemana.map((r) => [r.hospitalId, r]));
-  const pendientes = deLaSemana.filter((r) => r.estado === "pendiente");
   const faltantes = centros.filter((c) => !reportados.has(c.id));
 
   const suma = (k: keyof typeof reportes.$inferSelect) =>
@@ -78,7 +76,7 @@ export default async function Panel() {
             </h1>
           </div>
           <div className="flex flex-wrap gap-6">
-            <Metrica etiqueta="Pendientes de verificar" valor={pendientes.length} />
+            <Metrica etiqueta="Centros que reportaron" valor={centros.length - faltantes.length} />
             <Metrica etiqueta="Sin reportar" valor={faltantes.length} destaque={faltantes.length > 0} />
             <Metrica etiqueta="Actividades totales" valor={totalSemana} />
           </div>
@@ -120,17 +118,6 @@ export default async function Panel() {
                 </label>
                 <input type="date" name="semana" defaultValue={semana} required />
               </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                  Estado
-                </label>
-                <select name="estado" defaultValue="todos" className="h-9">
-                  <option value="todos">Todos</option>
-                  <option value="verificado">Verificados</option>
-                  <option value="pendiente">Pendientes</option>
-                  <option value="rechazado">Rechazados</option>
-                </select>
-              </div>
               <button className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel">
                 ⤓ Descargar Excel
               </button>
@@ -144,14 +131,13 @@ export default async function Panel() {
                   <th className="px-2 py-2.5 text-center font-semibold">Cons.</th>
                   <th className="px-2 py-2.5 text-center font-semibold">Interv.</th>
                   <th className="px-2 py-2.5 text-center font-semibold">Hosp.</th>
-                  <th className="px-2 py-2.5 text-center font-semibold">Estado</th>
-                  <th className="px-5 py-2.5 text-right font-semibold">Acción</th>
+                  <th className="px-2 py-2.5 text-center font-semibold">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {deLaSemana.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-6 text-center text-tinta3">
+                    <td colSpan={5} className="px-5 py-6 text-center text-tinta3">
                       Ningún centro ha reportado esta semana todavía.
                     </td>
                   </tr>
@@ -174,34 +160,8 @@ export default async function Panel() {
                       <td className="px-2 py-2.5 text-center font-semibold">{t("consultas")}</td>
                       <td className="px-2 py-2.5 text-center font-semibold">{t("intervenciones")}</td>
                       <td className="px-2 py-2.5 text-center font-semibold">{t("hospitalizaciones")}</td>
-                      <td className="px-2 py-2.5 text-center">
-                        <EtiquetaEstado estado={r.estado} />
-                      </td>
-                      <td className="px-5 py-2.5">
-                        {r.estado === "pendiente" && (
-                          <form action={accionRevisarReporte} className="flex justify-end gap-2">
-                            <input type="hidden" name="id" value={r.id} />
-                            <input
-                              name="observacionAdmin"
-                              placeholder="Observación (al rechazar)"
-                              className="w-44 text-[12px]"
-                            />
-                            <button
-                              name="estado"
-                              value="verificado"
-                              className="h-8 rounded-chico bg-verifica px-3 text-[12px] font-semibold text-white hover:brightness-110"
-                            >
-                              Verificar
-                            </button>
-                            <button
-                              name="estado"
-                              value="rechazado"
-                              className="h-8 rounded-chico border border-fecha/40 px-3 text-[12px] font-semibold text-fecha hover:bg-fecha/10"
-                            >
-                              Rechazar
-                            </button>
-                          </form>
-                        )}
+                      <td className="px-5 py-2.5 text-center font-bold text-banda">
+                        {t("consultas") + t("intervenciones") + t("hospitalizaciones")}
                       </td>
                     </tr>
                   );
@@ -292,18 +252,5 @@ function Metrica({ etiqueta, valor, destaque }: { etiqueta: string; valor: numbe
       <div className="text-[11px] font-semibold uppercase tracking-wider text-tinta3">{etiqueta}</div>
       <div className={`text-[26px] font-bold leading-tight ${destaque ? "text-fecha" : ""}`}>{valor}</div>
     </div>
-  );
-}
-
-function EtiquetaEstado({ estado }: { estado: string }) {
-  const estilos: Record<string, string> = {
-    pendiente: "bg-[#fdf3e3] text-[#9a6b16]",
-    verificado: "bg-verifica/10 text-verifica",
-    rechazado: "bg-fecha/10 text-fecha",
-  };
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${estilos[estado]}`}>
-      {estado}
-    </span>
   );
 }
