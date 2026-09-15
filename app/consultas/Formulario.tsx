@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Consulta, Especialidad, Reporte } from "@/lib/db/schema";
 import { accionGuardarCifras, accionImportarConsultasCentro, type EstadoForm, type ResultadoExcel } from "@/lib/actions";
 import { lunesActual, viernesDe } from "@/lib/fechas";
@@ -27,7 +28,12 @@ export default function FormularioCifras({
   historial: Reporte[];
 }) {
   const [semana, setSemana] = useState(lunesActual());
+  const router = useRouter();
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(accionGuardarCifras, {});
+  // Al guardar: refresca los datos del servidor (panel, historial, insignia)
+  useEffect(() => {
+    if (estado.ok) router.refresh();
+  }, [estado.ok, router]);
   const [estadoXl, accionXl, pendienteXl] = useActionState<ResultadoExcel, FormData>(
     accionImportarConsultasCentro,
     {},
