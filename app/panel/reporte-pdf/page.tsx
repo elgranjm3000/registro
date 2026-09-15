@@ -98,12 +98,23 @@ export default async function ReportePdf({
     intervenciones: "Intervención",
     hospitalizaciones: "Hospitalización",
   };
-  const porEsp = new Map<string, { nombre: string; tipo: string; Militar: number; Afiliado: number; PNA: number }>();
+  const nombreHospitalDe = new Map(centros.map((c) => [c.id, c.nombre]));
+  const porEsp = new Map<
+    string,
+    { hospital: string; nombre: string; tipo: string; Militar: number; Afiliado: number; PNA: number }
+  >();
   for (const f of filasC) {
     if (!tiposDetalle.includes(f.c.tipo)) continue;
-    const clave = `${f.e.id}-${f.c.tipo}`;
+    const clave = `${f.c.hospitalId}-${f.e.id}-${f.c.tipo}`;
     const acc =
-      porEsp.get(clave) ?? { nombre: f.e.nombre, tipo: ETIQUETA_TIPO[f.c.tipo], Militar: 0, Afiliado: 0, PNA: 0 };
+      porEsp.get(clave) ?? {
+        hospital: nombreHospitalDe.get(f.c.hospitalId) ?? "—",
+        nombre: f.e.nombre,
+        tipo: ETIQUETA_TIPO[f.c.tipo],
+        Militar: 0,
+        Afiliado: 0,
+        PNA: 0,
+      };
     acc.Militar += f.c.militar;
     acc.Afiliado += f.c.afiliado;
     acc.PNA += f.c.pna;
@@ -295,6 +306,9 @@ export default async function ReportePdf({
               <thead>
                 <tr>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
+                  {hospitalFiltro === "todos" && (
+                    <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">CENTRO</th>
+                  )}
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">ESPECIALIDAD</th>
                   {tipo === "todos" && (
                     <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">SERVICIO</th>
@@ -307,10 +321,18 @@ export default async function ReportePdf({
               </thead>
               <tbody>
                 {[...porEsp.values()]
-                  .sort((a, b) => a.nombre.localeCompare(b.nombre) || a.tipo.localeCompare(b.tipo))
+                  .sort(
+                    (a, b) =>
+                      a.hospital.localeCompare(b.hospital) ||
+                      a.nombre.localeCompare(b.nombre) ||
+                      a.tipo.localeCompare(b.tipo),
+                  )
                   .map((d, i) => (
-                    <tr key={`${d.nombre}-${d.tipo}`}>
+                    <tr key={`${d.hospital}-${d.nombre}-${d.tipo}`}>
                       <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
+                      {hospitalFiltro === "todos" && (
+                        <td className="border border-tinta/60 px-2 py-1">{d.hospital}</td>
+                      )}
                       <td className="border border-tinta/60 px-2 py-1">{d.nombre}</td>
                       {tipo === "todos" && (
                         <td className="border border-tinta/60 px-2 py-1">{d.tipo}</td>
@@ -323,8 +345,21 @@ export default async function ReportePdf({
                       </td>
                     </tr>
                   ))}
+                {porEsp.size === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="border border-tinta/60 px-2 py-3 text-center text-tinta3"
+                    >
+                      Sin detalle cargado para esta selección.
+                    </td>
+                  </tr>
+                )}
                 <tr className="bg-[#dce7f5] font-bold">
-                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={tipo === "todos" ? 3 : 2}>
+                  <td
+                    className="border border-tinta/60 px-2 py-1.5 text-center"
+                    colSpan={2 + (hospitalFiltro === "todos" ? 1 : 0) + (tipo === "todos" ? 1 : 0)}
+                  >
                     TOTAL
                   </td>
                   <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
