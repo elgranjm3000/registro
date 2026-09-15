@@ -128,7 +128,8 @@ export default function FormularioCifras({
                 <th className="rounded-r-chico px-4 py-2 text-right font-semibold">Total</th>
               </tr>
             </thead>
-            <tbody>
+            {/* key por semana: fuerza a recargar los valores guardados al cambiar de semana */}
+            <tbody key={semana}>
               {especialidades.map((e, i) => (
                 // Las filas SIEMPRE permanecen en el DOM (ocultas con CSS al filtrar)
                 // para que sus valores se envíen aunque no sean visibles.

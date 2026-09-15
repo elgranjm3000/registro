@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { desc, eq, gte, and } from "drizzle-orm";
+import { desc, eq, gte, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bitacora, hospitales, reportes } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
@@ -32,10 +32,11 @@ export default async function Panel() {
     d.setDate(d.getDate() - 7 * i);
     return d.toISOString().slice(0, 10);
   });
+  // Incluye pendientes: el admin ve las cifras en cuanto se cargan
   const historicos = await db
     .select()
     .from(reportes)
-    .where(and(gte(reportes.semanaDesde, ochoSemanas[7]), eq(reportes.estado, "verificado")));
+    .where(and(gte(reportes.semanaDesde, ochoSemanas[7]), ne(reportes.estado, "rechazado")));
 
   const ingresos = await db
     .select()
