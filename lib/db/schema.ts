@@ -77,6 +77,9 @@ export const consultas = sqliteTable(
     especialidadId: integer("especialidad_id")
       .notNull()
       .references(() => especialidades.id),
+    tipo: text("tipo", { enum: ["consultas", "intervenciones", "hospitalizaciones"] })
+      .notNull()
+      .default("consultas"),
     semanaDesde: text("semana_desde").notNull(), // YYYY-MM-DD (lunes)
     militar: integer("militar").notNull().default(0),
     afiliado: integer("afiliado").notNull().default(0),
@@ -84,8 +87,8 @@ export const consultas = sqliteTable(
     actualizadoEn: text("actualizado_en").notNull().$defaultFn(() => new Date().toISOString()),
   },
   (t) => [
-    uniqueIndex("consultas_hospital_esp_semana_idx").on(
-      t.hospitalId, t.especialidadId, t.semanaDesde,
+    uniqueIndex("consultas_hospital_esp_tipo_semana_idx").on(
+      t.hospitalId, t.especialidadId, t.tipo, t.semanaDesde,
     ),
   ],
 );

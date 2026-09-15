@@ -25,18 +25,21 @@ export async function GET() {
   const sem = lunes.toISOString().slice(0, 10);
 
   const hoja = XLSX.utils.json_to_sheet([
-    { Especialidad: esp[0]?.nombre ?? "CARDIOLOGÍA", Militar: 12, Afiliado: 8, PNA: 25, Semana: sem },
-    { Especialidad: esp[1]?.nombre ?? "TRAUMATOLOGÍA", Militar: 5, Afiliado: 3, PNA: 10, Semana: sem },
-    { Especialidad: esp[3]?.nombre ?? "ENDOCRINOLOGÍA", Militar: 4, Afiliado: 6, PNA: 9, Semana: sem },
+    { Especialidad: esp[0]?.nombre ?? "CARDIOLOGÍA", Tipo: "Consulta", Militar: 12, Afiliado: 8, PNA: 25, Semana: sem },
+    { Especialidad: esp[1]?.nombre ?? "TRAUMATOLOGÍA", Tipo: "Intervención", Militar: 5, Afiliado: 3, PNA: 10, Semana: sem },
+    { Especialidad: esp[3]?.nombre ?? "ENDOCRINOLOGÍA", Tipo: "Hospitalización", Militar: 4, Afiliado: 6, PNA: 9, Semana: sem },
   ]);
-  hoja["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 12 }];
+  hoja["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 12 }];
 
-  // Hoja con la lista para el desplegable
+  // Hoja con las listas para los desplegables
   const listas = XLSX.utils.aoa_to_sheet([
-    ["Especialidades"],
-    ...esp.map((e) => [e.nombre]),
+    ["Especialidades", "Tipo"],
+    ...Array.from({ length: Math.max(esp.length, 3) }, (_, i) => [
+      esp[i]?.nombre ?? "",
+      ["Consulta", "Intervención", "Hospitalización"][i] ?? "",
+    ]),
   ]);
-  listas["!cols"] = [{ wch: 28 }];
+  listas["!cols"] = [{ wch: 28 }, { wch: 16 }];
 
   const libro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(libro, hoja, "Consultas");
@@ -51,8 +54,9 @@ export async function GET() {
     let xml = await hojaConsultas.async("string");
     const fin = esp.length + 1;
     const validacion =
-      `<dataValidations count="1">` +
+      `<dataValidations count="2">` +
       `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="A2:A5000"><formula1>Listas!$A$2:$A$${fin}</formula1></dataValidation>` +
+      `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="B2:B5000"><formula1>Listas!$B$2:$B$4</formula1></dataValidation>` +
       `</dataValidations>`;
     xml = xml.replace("</worksheet>", `${validacion}</worksheet>`);
     zip.file("xl/worksheets/sheet1.xml", xml);

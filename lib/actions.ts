@@ -53,79 +53,51 @@ export async function accionSalir() {
 // ─── Semanas ───
 import { viernesDe } from "@/lib/fechas";
 
-// ─── Reporte semanal: se recalcula y envía solo al guardar cifras ───
-// autoverificar: sin flujo de aprobación — todo lo cargado entra verificado.
-export async function sincronizarReporte(
-  hospitalId: number,
-  semanaDesde: string,
-  autoverificar = false,
-) {
+// ─── Reporte semanal: se recalcula a partir de las filas de servicios cargadas ───
+// Todo lo cargado entra directo (sin flujo de aprobación).
+export async function sincronizarReporte(hospitalId: number, semanaDesde: string) {
   const semanaHasta = viernesDe(semanaDesde);
 
-  // Consultas: suma de todas las especialidades cargadas esa semana
   const filas = await db
     .select()
     .from(consultas)
     .where(and(eq(consultas.hospitalId, hospitalId), eq(consultas.semanaDesde, semanaDesde)));
-  const cM = filas.reduce((a, f) => a + f.militar, 0);
-  const cA = filas.reduce((a, f) => a + f.afiliado, 0);
-  const cP = filas.reduce((a, f) => a + f.pna, 0);
+
+  const sumaPor = (tipo: string) => ({
+    m: filas.filter((f) => f.tipo === tipo).reduce((a, f) => a + f.militar, 0),
+    a: filas.filter((f) => f.tipo === tipo).reduce((a, f) => a + f.afiliado, 0),
+    p: filas.filter((f) => f.tipo === tipo).reduce((a, f) => a + f.pna, 0),
+  });
+  const c = sumaPor("consultas");
+  const i = sumaPor("intervenciones");
+  const h = sumaPor("hospitalizaciones");
+
+  const valores = {
+    consultasMilitar: c.m, consultasAfiliado: c.a, consultasPna: c.p,
+    intervencionesMilitar: i.m, intervencionesAfiliado: i.a, intervencionesPna: i.p,
+    hospitalizacionesMilitar: h.m, hospitalizacionesAfiliado: h.a, hospitalizacionesPna: h.p,
+  };
+  const total = Object.values(valores).reduce((a, b) => a + b, 0);
 
   const [existente] = await db
     .select()
     .from(reportes)
     .where(and(eq(reportes.hospitalId, hospitalId), eq(reportes.semanaDesde, semanaDesde)));
 
-  // Intervenciones/hospitalizaciones: se conservan las cifras ya cargadas
-  const iM = existente?.intervencionesMilitar ?? 0;
-  const iA = existente?.intervencionesAfiliado ?? 0;
-  const iP = existente?.intervencionesPna ?? 0;
-  const hM = existente?.hospitalizacionesMilitar ?? 0;
-  const hA = existente?.hospitalizacionesAfiliado ?? 0;
-  const hP = existente?.hospitalizacionesPna ?? 0;
-
   if (existente) {
     await db
       .update(reportes)
-      .set({
-        consultasMilitar: cM, consultasAfiliado: cA, consultasPna: cP,
-        intervencionesMilitar: iM, intervencionesAfiliado: iA, intervencionesPna: iP,
-        hospitalizacionesMilitar: hM, hospitalizacionesAfiliado: hA, hospitalizacionesPna: hP,
-        semanaHasta,
-        estado: autoverificar ? "verificado" : "pendiente",
-        ...(autoverificar
-          ? {
-              verificadoEn: new Date().toISOString(),
-              observacionAdmin: "Cargado por la Sala Situacional",
-            }
-          : {}),
-        actualizadoEn: new Date().toISOString(),
-      })
+      .set({ ...valores, semanaHasta, actualizadoEn: new Date().toISOString() })
       .where(eq(reportes.id, existente.id));
-  } else if (cM + cA + cP + iM + iA + iP + hM + hA + hP > 0) {
-    await db.insert(reportes).values({
-      hospitalId,
-      semanaDesde,
-      semanaHasta,
-      consultasMilitar: cM, consultasAfiliado: cA, consultasPna: cP,
-      intervencionesMilitar: iM, intervencionesAfiliado: iA, intervencionesPna: iP,
-      hospitalizacionesMilitar: hM, hospitalizacionesAfiliado: hA, hospitalizacionesPna: hP,
-      ...(autoverificar
-        ? {
-            estado: "verificado" as const,
-            verificadoEn: new Date().toISOString(),
-            observacionAdmin: "Cargado por la Sala Situacional",
-          }
-        : {}),
-    });
+  } else if (total > 0) {
+    await db.insert(reportes).values({ hospitalId: hospitalId ?? 0, semanaDesde, semanaHasta, ...valores });
   }
   revalidatePath("/consultas");
   revalidatePath("/reportar");
   revalidatePath("/panel");
 }
 
-// Guarda las cantidades del centro: consultas por especialidad + intervenciones y
-// hospitalizaciones por categoría. El reporte se envía automáticamente (pendiente).
+// Guarda las filas de servicios del centro (especialidad + tipo + cantidades).
 export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
   const sesion = await getSesion();
   if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
@@ -133,76 +105,58 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
 
   const semanaDesde = String(fd.get("semanaDesde") ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(semanaDesde)) return { error: "Indica la semana (lunes)." };
+  const hospitalId: number = sesion.hospitalId;
 
   const numero = (k: string) => {
     const n = Math.round(Number(fd.get(k) ?? 0) || 0);
     return n < 0 ? 0 : n;
   };
 
-  // Intervenciones y hospitalizaciones
-  const interv = {
-    intervencionesMilitar: numero("intervMilitar"),
-    intervencionesAfiliado: numero("intervAfiliado"),
-    intervencionesPna: numero("intervPna"),
-    hospitalizacionesMilitar: numero("hospMilitar"),
-    hospitalizacionesAfiliado: numero("hospAfiliado"),
-    hospitalizacionesPna: numero("hospPna"),
-  };
+  const espLista = await db.select().from(especialidades).where(eq(especialidades.activa, true));
+  const espValidas = new Map(espLista.map((e) => [e.id, e.nombre]));
+  const TIPOS = ["consultas", "intervenciones", "hospitalizaciones"] as const;
 
-  // Consultas por especialidad (inputs llamados esp-<id> con "m,a,p")
-  const activas = await db.select().from(especialidades).where(eq(especialidades.activa, true));
-  let totalConsultas = 0;
-  for (const e of activas) {
-    const m = numero(`esp-${e.id}-m`);
-    const a = numero(`esp-${e.id}-a`);
-    const p = numero(`esp-${e.id}-p`);
-    totalConsultas += m + a + p;
-    if (m + a + p === 0) {
-      await db
-        .delete(consultas)
-        .where(
-          and(
-            eq(consultas.hospitalId, sesion.hospitalId),
-            eq(consultas.especialidadId, e.id),
-            eq(consultas.semanaDesde, semanaDesde),
-          ),
-        );
-      continue;
-    }
-    await db
-      .insert(consultas)
-      .values({ hospitalId: sesion.hospitalId, especialidadId: e.id, semanaDesde, militar: m, afiliado: a, pna: p })
-      .onConflictDoUpdate({
-        target: [consultas.hospitalId, consultas.especialidadId, consultas.semanaDesde],
-        set: { militar: m, afiliado: a, pna: p, actualizadoEn: new Date().toISOString() },
-      });
+  // Recolecta las filas enviadas (fila-<i>-esp/tipo/m/a/p)
+  const filas: { especialidadId: number; tipo: string; m: number; a: number; p: number }[] = [];
+  let totalServicios = 0;
+  for (let n = 0; n < 200; n++) {
+    const espId = Number(fd.get(`fila-${n}-esp`) ?? 0);
+    const tipo = String(fd.get(`fila-${n}-tipo`) ?? "");
+    const m = numero(`fila-${n}-m`);
+    const a = numero(`fila-${n}-a`);
+    const p = numero(`fila-${n}-p`);
+    if (!espId) continue;
+    if (!espValidas.has(espId)) return { error: "Hay una fila con especialidad inválida." };
+    if (!TIPOS.includes(tipo as (typeof TIPOS)[number]))
+      return { error: "Hay una fila con tipo inválido (Consulta / Intervención / Hospitalización)." };
+    if (m + a + p === 0) continue;
+    filas.push({ especialidadId: espId, tipo, m, a, p });
+    totalServicios += m + a + p;
   }
 
-  // Aplica intervenciones/hospitalizaciones al reporte y recalcula consultas
+  // Reemplaza todas las filas de la semana por lo enviado
   await db
-    .insert(reportes)
-    .values({
-      hospitalId: sesion.hospitalId,
-      semanaDesde,
-      semanaHasta: viernesDe(semanaDesde),
-      ...interv,
-      estado: "verificado",
-      verificadoEn: new Date().toISOString(),
-    })
-    .onConflictDoUpdate({
-      target: [reportes.hospitalId, reportes.semanaDesde],
-      set: {
-        ...interv,
-        semanaHasta: viernesDe(semanaDesde),
-        estado: "verificado",
-        verificadoEn: new Date().toISOString(),
-        actualizadoEn: new Date().toISOString(),
-      },
-    });
+    .delete(consultas)
+    .where(and(eq(consultas.hospitalId, hospitalId), eq(consultas.semanaDesde, semanaDesde)));
+  if (filas.length > 0) {
+    await db.insert(consultas).values(
+      filas.map((f) => ({
+        hospitalId,
+        especialidadId: f.especialidadId,
+        tipo: f.tipo as "consultas" | "intervenciones" | "hospitalizaciones",
+        semanaDesde,
+        militar: f.m,
+        afiliado: f.a,
+        pna: f.p,
+      })),
+    );
+  }
 
-  await sincronizarReporte(sesion.hospitalId, semanaDesde, true);
+  await sincronizarReporte(sesion.hospitalId, semanaDesde);
   revalidatePath("/consultas");
-  return { ok: `Cifras guardadas (${totalConsultas} consultas). Reporte enviado a verificación.` };
+  if (totalServicios === 0)
+    return { ok: "Se vaciaron las filas de la semana." };
+  return { ok: `Cifras guardadas (${totalServicios} servicios). El reporte está actualizado.` };
 }
 
 // ─── Especialidades (admin) ───
@@ -271,11 +225,17 @@ async function importarConsultas(filas: Record<string, unknown>[], requiereCentr
     const p = num(celda["pna"]);
     if (m + a + p === 0) continue;
 
+    const TIPOS_XL: Record<string, string> = {
+      consulta: "consultas", consultas: "consultas",
+      intervencion: "intervenciones", intervenciones: "intervenciones",
+      hospitalizacion: "hospitalizaciones", hospitalizaciones: "hospitalizaciones",
+    };
+    const tipo = TIPOS_XL[normalizar(String(celda["tipo"] ?? "consulta"))] ?? "consultas";
     await db
       .insert(consultas)
-      .values({ hospitalId, especialidadId, semanaDesde, militar: m, afiliado: a, pna: p })
+      .values({ hospitalId, especialidadId, tipo: tipo as "consultas", semanaDesde, militar: m, afiliado: a, pna: p })
       .onConflictDoUpdate({
-        target: [consultas.hospitalId, consultas.especialidadId, consultas.semanaDesde],
+        target: [consultas.hospitalId, consultas.especialidadId, consultas.tipo, consultas.semanaDesde],
         set: { militar: m, afiliado: a, pna: p, actualizadoEn: new Date().toISOString() },
       });
     const set = semanasPorHospital.get(hospitalId) ?? new Set<string>();
@@ -286,7 +246,7 @@ async function importarConsultas(filas: Record<string, unknown>[], requiereCentr
 
   for (const [hospitalId, semanas] of semanasPorHospital)
     // requiereCentro=true ⇒ importa el admin ⇒ entra verificado
-    for (const s of semanas) await sincronizarReporte(hospitalId, s, requiereCentro);
+    for (const s of semanas) await sincronizarReporte(hospitalId, s);
 
   revalidatePath("/consultas");
   revalidatePath("/panel");

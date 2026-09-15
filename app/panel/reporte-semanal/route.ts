@@ -96,7 +96,10 @@ export async function GET(req: Request) {
       ? null
       : (await db.select({ id: reportes.hospitalId }).from(reportes).where(and(...condiciones))).map((r) => r.id);
 
-  const condicionesC: SQL[] = [eq(consultas.semanaDesde, semanaDesde)];
+  const condicionesC: SQL[] = [
+    eq(consultas.semanaDesde, semanaDesde),
+    eq(consultas.tipo, "consultas"),
+  ];
   if (hospitalesIds) {
     if (hospitalesIds.length === 0) hospitalesIds.push(-1);
     condicionesC.push(inArray(consultas.hospitalId, hospitalesIds));
