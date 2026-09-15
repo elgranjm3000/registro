@@ -71,8 +71,6 @@ export async function sincronizarReporte(hospitalId: number, semanaDesde: string
     .from(reportes)
     .where(and(eq(reportes.hospitalId, hospitalId), eq(reportes.semanaDesde, semanaDesde)));
 
-  if (existente && existente.estado === "verificado") return; // lo verificado no se toca
-
   // Intervenciones/hospitalizaciones: se conservan las cifras ya cargadas
   const iM = existente?.intervencionesMilitar ?? 0;
   const iA = existente?.intervencionesAfiliado ?? 0;
@@ -163,13 +161,6 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
   }
 
   // Aplica intervenciones/hospitalizaciones al reporte y recalcula consultas
-  const [existente] = await db
-    .select()
-    .from(reportes)
-    .where(and(eq(reportes.hospitalId, sesion.hospitalId), eq(reportes.semanaDesde, semanaDesde)));
-  if (existente && existente.estado === "verificado")
-    return { error: "El reporte de esta semana ya fue verificado. Contacta a la Sala Situacional." };
-
   await db
     .insert(reportes)
     .values({
