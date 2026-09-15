@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { Consulta, Especialidad, Reporte } from "@/lib/db/schema";
 import { accionGuardarCifras, accionImportarConsultasCentro, type EstadoForm, type ResultadoExcel } from "@/lib/actions";
 import { lunesActual, viernesDe } from "@/lib/fechas";
@@ -29,6 +29,10 @@ export default function FormularioCifras({
       )
     : especialidades;
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(accionGuardarCifras, {});
+  // Valores controlados: React 19 limpia los inputs no controlados tras enviar
+  // el formulario; con estado propio lo escrito se conserva para seguir editando.
+  const [valores, setValores] = useState<Record<string, number>>({});
+  useEffect(() => setValores({}), [semana]);
   const [estadoXl, accionXl, pendienteXl] = useActionState<ResultadoExcel, FormData>(
     accionImportarConsultasCentro,
     {},
@@ -47,7 +51,10 @@ export default function FormularioCifras({
       type="number"
       min={0}
       name={name}
-      defaultValue={valor || ""}
+      value={valores[name] ?? (valor || "")}
+      onChange={(e) =>
+        setValores((v) => ({ ...v, [name]: e.target.value === "" ? 0 : Number(e.target.value) }))
+      }
       className="w-20 text-center"
     />
   );
