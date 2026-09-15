@@ -53,8 +53,13 @@ export async function accionSalir() {
 // ─── Semanas ───
 import { viernesDe } from "@/lib/fechas";
 
-// ─── Reporte semanal: se recalcula y envía (pendiente) solo al guardar cifras ───
-export async function sincronizarReporte(hospitalId: number, semanaDesde: string) {
+// ─── Reporte semanal: se recalcula y envía solo al guardar cifras ───
+// autoverificar: lo que carga el propio admin entra directo como verificado.
+export async function sincronizarReporte(
+  hospitalId: number,
+  semanaDesde: string,
+  autoverificar = false,
+) {
   const semanaHasta = viernesDe(semanaDesde);
 
   // Consultas: suma de todas las especialidades cargadas esa semana
@@ -87,7 +92,13 @@ export async function sincronizarReporte(hospitalId: number, semanaDesde: string
         intervencionesMilitar: iM, intervencionesAfiliado: iA, intervencionesPna: iP,
         hospitalizacionesMilitar: hM, hospitalizacionesAfiliado: hA, hospitalizacionesPna: hP,
         semanaHasta,
-        estado: "pendiente",
+        estado: autoverificar ? "verificado" : "pendiente",
+        ...(autoverificar
+          ? {
+              verificadoEn: new Date().toISOString(),
+              observacionAdmin: "Cargado por la Sala Situacional",
+            }
+          : {}),
         actualizadoEn: new Date().toISOString(),
       })
       .where(eq(reportes.id, existente.id));
@@ -99,6 +110,13 @@ export async function sincronizarReporte(hospitalId: number, semanaDesde: string
       consultasMilitar: cM, consultasAfiliado: cA, consultasPna: cP,
       intervencionesMilitar: iM, intervencionesAfiliado: iA, intervencionesPna: iP,
       hospitalizacionesMilitar: hM, hospitalizacionesAfiliado: hA, hospitalizacionesPna: hP,
+      ...(autoverificar
+        ? {
+            estado: "verificado" as const,
+            verificadoEn: new Date().toISOString(),
+            observacionAdmin: "Cargado por la Sala Situacional",
+          }
+        : {}),
     });
   }
   revalidatePath("/consultas");
@@ -264,7 +282,8 @@ async function importarConsultas(filas: Record<string, unknown>[], requiereCentr
   }
 
   for (const [hospitalId, semanas] of semanasPorHospital)
-    for (const s of semanas) await sincronizarReporte(hospitalId, s);
+    // requiereCentro=true ⇒ importa el admin ⇒ entra verificado
+    for (const s of semanas) await sincronizarReporte(hospitalId, s, requiereCentro);
 
   revalidatePath("/consultas");
   revalidatePath("/panel");
