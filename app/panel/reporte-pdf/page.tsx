@@ -143,7 +143,15 @@ export default async function ReportePdf({
           <a href="/panel" className="text-[13px] font-semibold text-banda hover:underline">
             ← Volver al panel
           </a>
-          <BotonImprimir />
+          <div className="flex items-center gap-2">
+            <a
+              href={`/panel/reporte-pdf/descarga?semana=${semana}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}`}
+              className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold leading-9 text-banda hover:bg-papel"
+            >
+              ⤓ Descargar PDF
+            </a>
+            <BotonImprimir />
+          </div>
         </div>
 
         {/* Membrete oficial */}

@@ -72,7 +72,12 @@ export default function Graficos({
                   strokeWidth={0}
                 >
                   {torta.map((d) => (
-                    <Cell key={d.name} fill={COLORES[d.name as keyof typeof COLORES]} />
+                    <Cell
+                      key={d.name}
+                      fill={
+                        COLORES[d.name.toLowerCase() as keyof typeof COLORES] ?? "#8593a8"
+                      }
+                    />
                   ))}
                 </Pie>
                 <Tooltip formatter={(v: unknown, n: unknown) => [`${v} (${Math.round((Number(v) / total) * 100)}%)`, String(n)]} />
@@ -87,11 +92,14 @@ export default function Graficos({
           )}
         </div>
         <div className="mt-3 flex justify-center gap-4">
-          {torta.map((d) => (
-            <span key={d.name} className="categoria categoria-militar" style={{ ["--cat" as string]: COLORES[d.name as keyof typeof COLORES], color: COLORES[d.name as keyof typeof COLORES] }}>
-              {d.name} · {d.value}
-            </span>
-          ))}
+          {torta.map((d) => {
+            const color = COLORES[d.name.toLowerCase() as keyof typeof COLORES] ?? "#8593a8";
+            return (
+              <span key={d.name} className="categoria" style={{ ["--cat" as string]: color, color }}>
+                {d.name} · {d.value}
+              </span>
+            );
+          })}
         </div>
       </div>
 

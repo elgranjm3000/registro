@@ -143,12 +143,6 @@ export default async function Panel() {
                   🖨 Generar PDF
                 </button>
               </form>
-              <form action="/panel/reporte-semanal" method="get" className="flex items-end">
-                <input type="hidden" name="semana" value={semana} />
-                <button className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel">
-                  ⤓ Excel
-                </button>
-              </form>
             </div>
           </div>
           <div className="overflow-x-auto rounded-grande bg-white shadow-[var(--elev)]">
