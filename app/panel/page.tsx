@@ -6,7 +6,7 @@ import { getSesion } from "@/lib/auth";
 import { accionRevisarReporte } from "@/lib/actions";
 import Encabezado from "@/components/Encabezado";
 import Graficos from "./Graficos";
-import ImportarPacientesAdmin from "./ImportarPacientes";
+import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
 
 const lunes = () => {
   const d = new Date();
@@ -92,7 +92,14 @@ export default async function Panel() {
 
         <Graficos historicos={historicos} deLaSemana={[...deLaSemana]} />
 
-        <ImportarPacientesAdmin />
+        <ImportarConsultasAdmin />
+
+        <section className="mt-6">
+          <h2 className="text-[13px] font-bold uppercase tracking-wider text-tinta2">
+            Especialidades de consulta
+          </h2>
+          <CrearEspecialidad />
+        </section>
 
         {/* Verificación de cargas */}
         <section className="mt-10">

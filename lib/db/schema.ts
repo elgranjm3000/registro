@@ -58,6 +58,40 @@ export const reportes = sqliteTable(
   (t) => [uniqueIndex("reportes_hospital_semana_idx").on(t.hospitalId, t.semanaDesde)],
 );
 
+export const especialidades = sqliteTable("especialidades", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nombre: text("nombre").notNull(),
+  activa: integer("activa", { mode: "boolean" }).notNull().default(true),
+  orden: integer("orden").notNull().default(100),
+});
+
+// Cantidades de consultas por especialidad y categoría, por centro y semana.
+// Sin datos de pacientes: solo cifras.
+export const consultas = sqliteTable(
+  "consultas",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    hospitalId: integer("hospital_id")
+      .notNull()
+      .references(() => hospitales.id),
+    especialidadId: integer("especialidad_id")
+      .notNull()
+      .references(() => especialidades.id),
+    semanaDesde: text("semana_desde").notNull(), // YYYY-MM-DD (lunes)
+    militar: integer("militar").notNull().default(0),
+    afiliado: integer("afiliado").notNull().default(0),
+    pna: integer("pna").notNull().default(0),
+    actualizadoEn: text("actualizado_en").notNull().$defaultFn(() => new Date().toISOString()),
+  },
+  (t) => [
+    uniqueIndex("consultas_hospital_esp_semana_idx").on(
+      t.hospitalId, t.especialidadId, t.semanaDesde,
+    ),
+  ],
+);
+
+export type Especialidad = typeof especialidades.$inferSelect;
+export type Consulta = typeof consultas.$inferSelect;
 export const pacientes = sqliteTable("pacientes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   hospitalId: integer("hospital_id")

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { and, eq, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { hospitales, reportes } from "@/lib/db/schema";
+import { consultas, especialidades, hospitales, reportes } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
 
 // Exporta el reporte semanal en Excel, replicando el formato oficial:
@@ -89,8 +89,70 @@ export async function GET(req: Request) {
   }
 
   hoja["!cols"] = [{ wch: 4 }, { wch: 62 }, ...Array(13).fill({ wch: 12 }), { wch: 18 }, { wch: 12 }];
+
+  // Hoja 2: consultas por especialidad (todas las especialidades, con total)
+  const hospitalesIds =
+    estadoFiltro === "todos"
+      ? null
+      : (await db.select({ id: reportes.hospitalId }).from(reportes).where(and(...condiciones))).map((r) => r.id);
+
+  const condicionesC: SQL[] = [eq(consultas.semanaDesde, semanaDesde)];
+  if (hospitalesIds) {
+    if (hospitalesIds.length === 0) hospitalesIds.push(-1);
+    condicionesC.push(inArray(consultas.hospitalId, hospitalesIds));
+  }
+  const filasC = await db
+    .select({ c: consultas, e: especialidades })
+    .from(consultas)
+    .innerJoin(especialidades, eq(consultas.especialidadId, especialidades.id))
+    .where(and(...condicionesC));
+
+  const porEsp = new Map<number, { nombre: string; m: number; a: number; p: number }>();
+  for (const f of filasC) {
+    const acc = porEsp.get(f.e.id) ?? { nombre: f.e.nombre, m: 0, a: 0, p: 0 };
+    acc.m += f.c.militar;
+    acc.a += f.c.afiliado;
+    acc.p += f.c.pna;
+    porEsp.set(f.e.id, acc);
+  }
+  const espTodas = await db
+    .select()
+    .from(especialidades)
+    .where(eq(especialidades.activa, true))
+    .orderBy(asc(especialidades.orden), asc(especialidades.nombre));
+
+  const hojaEsp = XLSX.utils.json_to_sheet([
+    [`CONSULTAS POR ESPECIALIDAD — SEMANA DEL ${fmt(semanaDesde)} AL ${fmt(semanaHasta)}`],
+    [],
+    ...espTodas.map((e, i) => {
+      const d = porEsp.get(e.id) ?? { nombre: e.nombre, m: 0, a: 0, p: 0 };
+      return {
+        "Nº": i + 1,
+        ESPECIALIDAD: d.nombre,
+        MILITAR: d.m,
+        AFILIADO: d.a,
+        PNA: d.p,
+        TOTAL: d.m + d.a + d.p,
+      };
+    }),
+    [
+      "",
+      "TOTAL",
+      ...porEsp.size
+        ? [
+            [...porEsp.values()].reduce((s, d) => s + d.m, 0),
+            [...porEsp.values()].reduce((s, d) => s + d.a, 0),
+            [...porEsp.values()].reduce((s, d) => s + d.p, 0),
+            [...porEsp.values()].reduce((s, d) => s + d.m + d.a + d.p, 0),
+          ]
+        : [0, 0, 0, 0],
+    ],
+  ]);
+  hojaEsp["!cols"] = [{ wch: 4 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }];
+
   const libro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(libro, hoja, "Reporte semanal");
+  XLSX.utils.book_append_sheet(libro, hojaEsp, "Consultas por especialidad");
   const buffer = XLSX.write(libro, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
   return new NextResponse(new Uint8Array(buffer), {

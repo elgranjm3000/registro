@@ -3,13 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { bitacora, hospitales, reportes } from "@/lib/db/schema";
+import { bitacora, consultas, especialidades, hospitales, reportes } from "@/lib/db/schema";
 import { crearSesion, cerrarSesion, getSesion, verificarClave } from "@/lib/auth";
 
 export type EstadoForm = { error?: string; ok?: string };
 
+// ─── Bitácora de accesos ───
 async function registrarBitacora(
   email: string,
   rol: string,
@@ -39,7 +40,7 @@ export async function accionLogin(_prev: EstadoForm, fd: FormData): Promise<Esta
   }
   await registrarBitacora(email, sesion.rol, sesion.hospitalId, "login_exitoso");
   await crearSesion(sesion);
-  redirect(sesion.rol === "admin" ? "/panel" : "/reportar");
+  redirect(sesion.rol === "admin" ? "/panel" : "/consultas");
 }
 
 export async function accionSalir() {
@@ -49,40 +50,21 @@ export async function accionSalir() {
   redirect("/login");
 }
 
-const CAMPOS = [
-  "consultasMilitar", "consultasAfiliado", "consultasPna",
-  "intervencionesMilitar", "intervencionesAfiliado", "intervencionesPna",
-  "hospitalizacionesMilitar", "hospitalizacionesAfiliado", "hospitalizacionesPna",
-] as const;
+// ─── Semanas ───
+import { viernesDe } from "@/lib/fechas";
 
-// El reporte semanal se genera y envía (estado pendiente) automáticamente
-// cada vez que cambia la lista de pacientes. No hay botón de envío.
-export async function sincronizarReporte(hospitalId: number, fechaISO: string) {
-  const { pacientes } = await import("@/lib/db/schema");
-  const d = new Date(fechaISO + "T12:00:00");
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  const semanaDesde = d.toISOString().slice(0, 10);
-  d.setDate(d.getDate() + 4);
-  const semanaHasta = d.toISOString().slice(0, 10);
+// ─── Reporte semanal: se recalcula y envía (pendiente) solo al guardar cifras ───
+export async function sincronizarReporte(hospitalId: number, semanaDesde: string) {
+  const semanaHasta = viernesDe(semanaDesde);
 
-  const registrados = await db
+  // Consultas: suma de todas las especialidades cargadas esa semana
+  const filas = await db
     .select()
-    .from(pacientes)
-    .where(
-      and(
-        eq(pacientes.hospitalId, hospitalId),
-        gte(pacientes.fecha, semanaDesde),
-        lte(pacientes.fecha, semanaHasta),
-      ),
-    );
-  if (registrados.length === 0) return; // nada que reportar aún
-
-  const valores: Record<string, number> = {};
-  for (const c of CAMPOS) valores[c] = 0;
-  for (const p of registrados) {
-    const suf = p.categoria === "militar" ? "Militar" : p.categoria === "afiliado" ? "Afiliado" : "Pna";
-    valores[`${p.actividad}${suf}`] += 1;
-  }
+    .from(consultas)
+    .where(and(eq(consultas.hospitalId, hospitalId), eq(consultas.semanaDesde, semanaDesde)));
+  const cM = filas.reduce((a, f) => a + f.militar, 0);
+  const cA = filas.reduce((a, f) => a + f.afiliado, 0);
+  const cP = filas.reduce((a, f) => a + f.pna, 0);
 
   const [existente] = await db
     .select()
@@ -91,16 +73,239 @@ export async function sincronizarReporte(hospitalId: number, fechaISO: string) {
 
   if (existente && existente.estado === "verificado") return; // lo verificado no se toca
 
+  // Intervenciones/hospitalizaciones: se conservan las cifras ya cargadas
+  const iM = existente?.intervencionesMilitar ?? 0;
+  const iA = existente?.intervencionesAfiliado ?? 0;
+  const iP = existente?.intervencionesPna ?? 0;
+  const hM = existente?.hospitalizacionesMilitar ?? 0;
+  const hA = existente?.hospitalizacionesAfiliado ?? 0;
+  const hP = existente?.hospitalizacionesPna ?? 0;
+
   if (existente) {
     await db
       .update(reportes)
-      .set({ ...valores, semanaHasta, estado: "pendiente", actualizadoEn: new Date().toISOString() })
+      .set({
+        consultasMilitar: cM, consultasAfiliado: cA, consultasPna: cP,
+        intervencionesMilitar: iM, intervencionesAfiliado: iA, intervencionesPna: iP,
+        hospitalizacionesMilitar: hM, hospitalizacionesAfiliado: hA, hospitalizacionesPna: hP,
+        semanaHasta,
+        estado: "pendiente",
+        actualizadoEn: new Date().toISOString(),
+      })
       .where(eq(reportes.id, existente.id));
-  } else {
-    await db.insert(reportes).values({ hospitalId, semanaDesde, semanaHasta, ...valores });
+  } else if (cM + cA + cP + iM + iA + iP + hM + hA + hP > 0) {
+    await db.insert(reportes).values({
+      hospitalId,
+      semanaDesde,
+      semanaHasta,
+      consultasMilitar: cM, consultasAfiliado: cA, consultasPna: cP,
+      intervencionesMilitar: iM, intervencionesAfiliado: iA, intervencionesPna: iP,
+      hospitalizacionesMilitar: hM, hospitalizacionesAfiliado: hA, hospitalizacionesPna: hP,
+    });
   }
+  revalidatePath("/consultas");
   revalidatePath("/reportar");
   revalidatePath("/panel");
+}
+
+// Guarda las cantidades del centro: consultas por especialidad + intervenciones y
+// hospitalizaciones por categoría. El reporte se envía automáticamente (pendiente).
+export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
+    return { error: "Sesión no válida." };
+
+  const semanaDesde = String(fd.get("semanaDesde") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(semanaDesde)) return { error: "Indica la semana (lunes)." };
+
+  const numero = (k: string) => {
+    const n = Math.round(Number(fd.get(k) ?? 0) || 0);
+    return n < 0 ? 0 : n;
+  };
+
+  // Intervenciones y hospitalizaciones
+  const interv = {
+    intervencionesMilitar: numero("intervMilitar"),
+    intervencionesAfiliado: numero("intervAfiliado"),
+    intervencionesPna: numero("intervPna"),
+    hospitalizacionesMilitar: numero("hospMilitar"),
+    hospitalizacionesAfiliado: numero("hospAfiliado"),
+    hospitalizacionesPna: numero("hospPna"),
+  };
+
+  // Consultas por especialidad (inputs llamados esp-<id> con "m,a,p")
+  const activas = await db.select().from(especialidades).where(eq(especialidades.activa, true));
+  let totalConsultas = 0;
+  for (const e of activas) {
+    const m = numero(`esp-${e.id}-m`);
+    const a = numero(`esp-${e.id}-a`);
+    const p = numero(`esp-${e.id}-p`);
+    totalConsultas += m + a + p;
+    if (m + a + p === 0) {
+      await db
+        .delete(consultas)
+        .where(
+          and(
+            eq(consultas.hospitalId, sesion.hospitalId),
+            eq(consultas.especialidadId, e.id),
+            eq(consultas.semanaDesde, semanaDesde),
+          ),
+        );
+      continue;
+    }
+    await db
+      .insert(consultas)
+      .values({ hospitalId: sesion.hospitalId, especialidadId: e.id, semanaDesde, militar: m, afiliado: a, pna: p })
+      .onConflictDoUpdate({
+        target: [consultas.hospitalId, consultas.especialidadId, consultas.semanaDesde],
+        set: { militar: m, afiliado: a, pna: p, actualizadoEn: new Date().toISOString() },
+      });
+  }
+
+  // Aplica intervenciones/hospitalizaciones al reporte y recalcula consultas
+  const [existente] = await db
+    .select()
+    .from(reportes)
+    .where(and(eq(reportes.hospitalId, sesion.hospitalId), eq(reportes.semanaDesde, semanaDesde)));
+  if (existente && existente.estado === "verificado")
+    return { error: "El reporte de esta semana ya fue verificado. Contacta a la Sala Situacional." };
+
+  await db
+    .insert(reportes)
+    .values({
+      hospitalId: sesion.hospitalId,
+      semanaDesde,
+      semanaHasta: viernesDe(semanaDesde),
+      ...interv,
+    })
+    .onConflictDoUpdate({
+      target: [reportes.hospitalId, reportes.semanaDesde],
+      set: {
+        ...interv,
+        semanaHasta: viernesDe(semanaDesde),
+        estado: "pendiente",
+        actualizadoEn: new Date().toISOString(),
+      },
+    });
+
+  await sincronizarReporte(sesion.hospitalId, semanaDesde);
+  revalidatePath("/consultas");
+  return { ok: `Cifras guardadas (${totalConsultas} consultas). Reporte enviado a verificación.` };
+}
+
+// ─── Especialidades (admin) ───
+export async function accionCrearEspecialidad(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin." };
+  const nombre = String(fd.get("nombre") ?? "").trim().toUpperCase();
+  if (nombre.length < 3) return { error: "Nombre muy corto." };
+  await db.insert(especialidades).values({ nombre }).onConflictDoNothing();
+  revalidatePath("/panel");
+  revalidatePath("/consultas");
+  return { ok: `Especialidad ${nombre} agregada.` };
+}
+
+// ─── Excel ───
+export type ResultadoExcel = { ok?: string; error?: string; detalle?: string[] };
+
+const normalizar = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+
+// Importa el Excel de consultas por especialidad (una fila: Centro?, Especialidad, M, A, PNA)
+async function importarConsultas(filas: Record<string, unknown>[], requiereCentro: boolean, hospitalFijo?: number) {
+  const centros = await db.select().from(hospitales);
+  const porNombre = new Map(centros.map((c) => [normalizar(c.nombre), c.id]));
+  const espLista = await db.select().from(especialidades);
+  const espPorNombre = new Map(espLista.map((e) => [normalizar(e.nombre), e.id]));
+
+  const detalle: string[] = [];
+  const semanasPorHospital = new Map<number, Set<string>>();
+  let cargadas = 0;
+
+  for (const [i, fila] of filas.entries()) {
+    const celda: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fila)) celda[normalizar(k)] = v;
+
+    let hospitalId = hospitalFijo ?? null;
+    if (requiereCentro) {
+      const nombreCentro = String(celda["centro"] ?? celda["hospital"] ?? "").trim();
+      if (!nombreCentro || normalizar(nombreCentro).startsWith("total")) continue;
+      hospitalId = porNombre.get(normalizar(nombreCentro)) ?? null;
+      if (!hospitalId) {
+        detalle.push(`⚠ Fila ${i + 2}: el centro "${nombreCentro}" no existe; usa el desplegable.`);
+        continue;
+      }
+    }
+    if (!hospitalId) continue;
+
+    const nombreEsp = String(celda["especialidad"] ?? "").trim();
+    if (!nombreEsp) {
+      detalle.push(`⚠ Fila ${i + 2}: sin especialidad; ignorada.`);
+      continue;
+    }
+    const especialidadId = espPorNombre.get(normalizar(nombreEsp));
+    if (!especialidadId) {
+      detalle.push(`⚠ Fila ${i + 2}: la especialidad "${nombreEsp}" no existe (agrégala en el panel).`);
+      continue;
+    }
+    const semanaDesde = String(celda["semana"] ?? celda["semanadesde"] ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(semanaDesde)) {
+      detalle.push(`⚠ Fila ${i + 2}: columna Semana inválida (usa AAAA-MM-DD del lunes).`);
+      continue;
+    }
+    const num = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+    const m = num(celda["militar"]);
+    const a = num(celda["afiliado"]);
+    const p = num(celda["pna"]);
+    if (m + a + p === 0) continue;
+
+    await db
+      .insert(consultas)
+      .values({ hospitalId, especialidadId, semanaDesde, militar: m, afiliado: a, pna: p })
+      .onConflictDoUpdate({
+        target: [consultas.hospitalId, consultas.especialidadId, consultas.semanaDesde],
+        set: { militar: m, afiliado: a, pna: p, actualizadoEn: new Date().toISOString() },
+      });
+    const set = semanasPorHospital.get(hospitalId) ?? new Set<string>();
+    set.add(semanaDesde);
+    semanasPorHospital.set(hospitalId, set);
+    cargadas++;
+  }
+
+  for (const [hospitalId, semanas] of semanasPorHospital)
+    for (const s of semanas) await sincronizarReporte(hospitalId, s);
+
+  revalidatePath("/consultas");
+  revalidatePath("/panel");
+  return {
+    ok: `${cargadas} fila(s) de consultas cargadas en ${semanasPorHospital.size} centro(s).`,
+    detalle: detalle.length ? detalle : undefined,
+  };
+}
+
+export async function accionImportarConsultasCentro(_prev: ResultadoExcel, fd: FormData): Promise<ResultadoExcel> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
+    return { error: "Sesión no válida." };
+  const archivo = fd.get("archivo") as File | null;
+  if (!archivo || archivo.size === 0) return { error: "Selecciona un archivo .xlsx" };
+  const XLSX = await import("xlsx");
+  const libro = XLSX.read(Buffer.from(await archivo.arrayBuffer()), { type: "buffer" });
+  const filas: Record<string, unknown>[] = XLSX.utils.sheet_to_json(libro.Sheets[libro.SheetNames[0]], { defval: "" });
+  if (filas.length === 0) return { error: "El archivo no tiene filas de datos." };
+  return importarConsultas(filas, false, sesion.hospitalId);
+}
+
+export async function accionImportarConsultasAdmin(_prev: ResultadoExcel, fd: FormData): Promise<ResultadoExcel> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin puede importar." };
+  const archivo = fd.get("archivo") as File | null;
+  if (!archivo || archivo.size === 0) return { error: "Selecciona un archivo .xlsx" };
+  const XLSX = await import("xlsx");
+  const libro = XLSX.read(Buffer.from(await archivo.arrayBuffer()), { type: "buffer" });
+  const filas: Record<string, unknown>[] = XLSX.utils.sheet_to_json(libro.Sheets[libro.SheetNames[0]], { defval: "" });
+  if (filas.length === 0) return { error: "El archivo no tiene filas de datos." };
+  return importarConsultas(filas, true);
 }
 
 export async function accionRevisarReporte(fd: FormData) {
@@ -119,364 +324,4 @@ export async function accionRevisarReporte(fd: FormData) {
     })
     .where(eq(reportes.id, id));
   revalidatePath("/panel");
-  revalidatePath("/panel/reportes");
-}
-
-const normalizar = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
-
-const COLUMNAS: [string, keyof typeof reportes.$inferInsert][] = [
-  ["consultasmilitar", "consultasMilitar"],
-  ["consultasafiliado", "consultasAfiliado"],
-  ["consultaspna", "consultasPna"],
-  ["intervencionesmilitar", "intervencionesMilitar"],
-  ["intervencionesafiliado", "intervencionesAfiliado"],
-  ["intervencionespna", "intervencionesPna"],
-  ["hospitalizacionesmilitar", "hospitalizacionesMilitar"],
-  ["hospitalizacionesafiliado", "hospitalizacionesAfiliado"],
-  ["hospitalizacionespna", "hospitalizacionesPna"],
-];
-
-export type ResultadoExcel = { ok?: string; error?: string; detalle?: string[] };
-
-export async function accionImportarExcel(_prev: ResultadoExcel, fd: FormData): Promise<ResultadoExcel> {
-  const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin puede importar." };
-
-  const semanaDesde = String(fd.get("semanaDesde") ?? "");
-  if (!semanaDesde) return { error: "Indica la semana (lunes) de los datos." };
-  const d = new Date(semanaDesde + "T12:00:00");
-  d.setDate(d.getDate() + 4);
-  const semanaHasta = d.toISOString().slice(0, 10);
-
-  const archivo = fd.get("archivo") as File | null;
-  if (!archivo || archivo.size === 0) return { error: "Selecciona un archivo .xlsx" };
-
-  const XLSX = await import("xlsx");
-  const libro = XLSX.read(Buffer.from(await archivo.arrayBuffer()), { type: "buffer" });
-  const hoja = libro.Sheets[libro.SheetNames[0]];
-  const filas: Record<string, unknown>[] = XLSX.utils.sheet_to_json(hoja, { defval: 0 });
-
-  const centros = await db.select().from(hospitales);
-  const porNombre = new Map(centros.map((c) => [normalizar(c.nombre), c.id]));
-
-  const detalle: string[] = [];
-  let cargados = 0;
-
-  for (const fila of filas) {
-    const celdas: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(fila)) celdas[normalizar(k)] = v;
-
-    const nombreCentro = String(
-      celdas["centro"] ?? celdas["hospital"] ?? celdas["centrosdesalud"] ?? "",
-    ).trim();
-    if (!nombreCentro) continue;
-    if (normalizar(nombreCentro).startsWith("total")) continue; // fila TOTAL del formato
-
-    const hospitalId = porNombre.get(normalizar(nombreCentro));
-    if (!hospitalId) {
-      detalle.push(`⚠ ${nombreCentro}: no coincide con ningún centro registrado.`);
-      continue;
-    }
-
-    const valores: Record<string, number> = {};
-    let valida = true;
-    for (const [clave, campo] of COLUMNAS) {
-      const n = Math.round(Number(celdas[clave] ?? 0) || 0);
-      if (n < 0) valida = false;
-      valores[campo] = n;
-    }
-    if (!valida) {
-      detalle.push(`⚠ ${nombreCentro}: hay valores negativos; fila ignorada.`);
-      continue;
-    }
-
-    const [existente] = await db
-      .select()
-      .from(reportes)
-      .where(and(eq(reportes.hospitalId, hospitalId), eq(reportes.semanaDesde, semanaDesde)));
-
-    if (existente && existente.estado === "verificado") {
-      detalle.push(`↷ ${nombreCentro}: ya tenía reporte verificado; no se tocó.`);
-      continue;
-    }
-
-    if (existente) {
-      await db
-        .update(reportes)
-        .set({
-          ...valores,
-          semanaHasta,
-          estado: "verificado",
-          observacionAdmin: "Cargado por la Sala Situacional vía Excel",
-          verificadoEn: new Date().toISOString(),
-          actualizadoEn: new Date().toISOString(),
-        })
-        .where(eq(reportes.id, existente.id));
-    } else {
-      await db.insert(reportes).values({
-        hospitalId,
-        semanaDesde,
-        semanaHasta,
-        ...valores,
-        estado: "verificado",
-        observacionAdmin: "Cargado por la Sala Situacional vía Excel",
-        verificadoEn: new Date().toISOString(),
-      });
-    }
-    cargados++;
-  }
-
-  revalidatePath("/panel");
-  return {
-    ok: `${cargados} centros cargados para la semana del ${semanaDesde}.`,
-    detalle: detalle.length ? detalle : undefined,
-  };
-}
-
-// ─── Pacientes ───
-export async function accionRegistrarPaciente(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
-    return { error: "Sesión no válida." };
-
-  const nombre = String(fd.get("nombre") ?? "").trim();
-  if (!nombre) return { error: "Indica el nombre del paciente." };
-  const categoria = String(fd.get("categoria") ?? "");
-  const actividad = String(fd.get("actividad") ?? "");
-  const fecha = String(fd.get("fecha") ?? "");
-  if (!["militar", "afiliado", "pna"].includes(categoria))
-    return { error: "Selecciona la categoría (Militar / Afiliado / PNA)." };
-  if (!["consultas", "intervenciones", "hospitalizaciones"].includes(actividad))
-    return { error: "Selecciona la actividad." };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: "Indica la fecha de atención." };
-
-  const edad = Number(fd.get("edad") ?? 0) || null;
-  const { pacientes } = await import("@/lib/db/schema");
-  await db.insert(pacientes).values({
-    hospitalId: sesion.hospitalId,
-    nombre,
-    cedula: String(fd.get("cedula") ?? "").trim(),
-    edad,
-    sexo: String(fd.get("sexo") ?? "M") === "F" ? "F" : "M",
-    categoria: categoria as "militar" | "afiliado" | "pna",
-    actividad: actividad as "consultas" | "intervenciones" | "hospitalizaciones",
-    fecha,
-  });
-  revalidatePath("/pacientes");
-  await sincronizarReporte(sesion.hospitalId, fecha);
-  return { ok: `Paciente ${nombre} registrado. Reporte semanal actualizado automáticamente.` };
-}
-
-export async function accionEliminarPaciente(fd: FormData) {
-  const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId) return;
-  const id = Number(fd.get("id"));
-  const { pacientes } = await import("@/lib/db/schema");
-  // Solo puede borrar pacientes de su propio centro
-  await db
-    .delete(pacientes)
-    .where(and(eq(pacientes.id, id), eq(pacientes.hospitalId, sesion.hospitalId)));
-  revalidatePath("/pacientes");
-  await sincronizarReporte(sesion.hospitalId, new Date().toISOString().slice(0, 10));
-}
-
-// ─── Carga masiva de pacientes vía Excel (por centro) ───
-export type ResultadoPacientes = { ok?: string; error?: string; detalle?: string[] };
-
-const CATEGORIAS_XL: Record<string, string> = {
-  militar: "militar",
-  m: "militar",
-  afiliado: "afiliado",
-  a: "afiliado",
-  pna: "pna",
-  p: "pna",
-};
-
-const ACTIVIDADES_XL: Record<string, string> = {
-  consulta: "consultas",
-  consultas: "consultas",
-  intervencion: "intervenciones",
-  intervenciones: "intervenciones",
-  hospitalizacion: "hospitalizaciones",
-  hospitalizaciones: "hospitalizaciones",
-};
-
-function parseFecha(v: unknown): string | null {
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  const s = String(v ?? "").trim();
-  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  m = s.match(/^(\d{1,2})[/](\d{1,2})[/](\d{2,4})$/);
-  if (m) {
-    const anio = m[3].length === 2 ? `20${m[3]}` : m[3];
-    return `${anio}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`; // dd/mm/yyyy
-  }
-  return null;
-}
-
-export async function accionImportarPacientes(_prev: ResultadoPacientes, fd: FormData): Promise<ResultadoPacientes> {
-  const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
-    return { error: "Sesión no válida." };
-
-  const archivo = fd.get("archivo") as File | null;
-  if (!archivo || archivo.size === 0) return { error: "Selecciona un archivo .xlsx" };
-
-  const XLSX = await import("xlsx");
-  const libro = XLSX.read(Buffer.from(await archivo.arrayBuffer()), { type: "buffer" });
-  const filas: Record<string, unknown>[] = XLSX.utils.sheet_to_json(
-    libro.Sheets[libro.SheetNames[0]],
-    { defval: "" },
-  );
-  if (filas.length === 0) return { error: "El archivo no tiene filas de datos." };
-
-  const { pacientes } = await import("@/lib/db/schema");
-  const detalle: string[] = [];
-  const fechasValidas: string[] = [];
-  let registrados = 0;
-
-  for (const [i, fila] of filas.entries()) {
-    const celda: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(fila)) celda[normalizar(k)] = v;
-
-    const nombre = String(celda["nombre"] ?? "").trim();
-    if (!nombre) {
-      detalle.push(`⚠ Fila ${i + 2}: sin nombre; ignorada.`);
-      continue;
-    }
-    const categoria = CATEGORIAS_XL[normalizar(String(celda["categoria"] ?? ""))];
-    if (!categoria) {
-      detalle.push(`⚠ ${nombre}: categoría inválida (usa MILITAR, AFILIADO o PNA); ignorado.`);
-      continue;
-    }
-    const actividad = ACTIVIDADES_XL[normalizar(String(celda["actividad"] ?? ""))];
-    if (!actividad) {
-      detalle.push(`⚠ ${nombre}: actividad inválida (usa Consulta, Intervención u Hospitalización); ignorado.`);
-      continue;
-    }
-    const fecha = parseFecha(celda["fecha"]);
-    if (!fecha) {
-      detalle.push(`⚠ ${nombre}: fecha inválida (usa AAAA-MM-DD o DD/MM/AAAA); ignorado.`);
-      continue;
-    }
-
-    await db.insert(pacientes).values({
-      hospitalId: sesion.hospitalId,
-      nombre,
-      cedula: String(celda["cedula"] ?? celda["ci"] ?? "").trim(),
-      edad: Number(celda["edad"]) || null,
-      sexo: normalizar(String(celda["sexo"] ?? "")) === "f" ? "F" : "M",
-      categoria: categoria as "militar" | "afiliado" | "pna",
-      actividad: actividad as "consultas" | "intervenciones" | "hospitalizaciones",
-      fecha,
-    });
-    fechasValidas.push(fecha);
-    registrados++;
-  }
-
-  revalidatePath("/pacientes");
-  // Sincroniza los reportes de las semanas con pacientes nuevos (registrados ya recolectados)
-  const semanas = [...new Set(fechasValidas)].map((f) => {
-    const d = new Date(f + "T12:00:00");
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    return d.toISOString().slice(0, 10);
-  });
-  for (const s of semanas) await sincronizarReporte(sesion.hospitalId, s);
-  return {
-    ok: `${registrados} pacientes registrados. Reporte(s) semanal(es) actualizado(s) automáticamente.`,
-    detalle: detalle.length ? detalle : undefined,
-  };
-}
-
-// ─── Carga masiva de pacientes por el admin (con columna Centro) ───
-export async function accionImportarPacientesAdmin(_prev: ResultadoPacientes, fd: FormData): Promise<ResultadoPacientes> {
-  const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin puede importar." };
-
-  const archivo = fd.get("archivo") as File | null;
-  if (!archivo || archivo.size === 0) return { error: "Selecciona un archivo .xlsx" };
-
-  const XLSX = await import("xlsx");
-  const libro = XLSX.read(Buffer.from(await archivo.arrayBuffer()), { type: "buffer" });
-  const filas: Record<string, unknown>[] = XLSX.utils.sheet_to_json(
-    libro.Sheets[libro.SheetNames[0]],
-    { defval: "" },
-  );
-  if (filas.length === 0) return { error: "El archivo no tiene filas de datos." };
-
-  const { pacientes } = await import("@/lib/db/schema");
-  const centros = await db.select().from(hospitales);
-  const porNombre = new Map(centros.map((c) => [normalizar(c.nombre), c.id]));
-
-  const detalle: string[] = [];
-  const fechasPorHospital = new Map<number, string[]>(); // hospitalId → fechas a sincronizar
-  let registrados = 0;
-
-  for (const [i, fila] of filas.entries()) {
-    const celda: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(fila)) celda[normalizar(k)] = v;
-
-    const nombreCentro = String(
-      celda["centro"] ?? celda["hospital"] ?? celda["centrosdesalud"] ?? "",
-    ).trim();
-    if (!nombreCentro || normalizar(nombreCentro).startsWith("total")) continue;
-    const hospitalId = porNombre.get(normalizar(nombreCentro));
-    if (!hospitalId) {
-      detalle.push(`⚠ Fila ${i + 2}: el centro "${nombreCentro}" no existe; usa el desplegable de la plantilla.`);
-      continue;
-    }
-
-    const nombre = String(celda["nombre"] ?? "").trim();
-    if (!nombre) {
-      detalle.push(`⚠ Fila ${i + 2}: sin nombre; ignorada.`);
-      continue;
-    }
-    const categoria = CATEGORIAS_XL[normalizar(String(celda["categoria"] ?? ""))];
-    if (!categoria) {
-      detalle.push(`⚠ ${nombre}: categoría inválida (usa MILITAR, AFILIADO o PNA); ignorado.`);
-      continue;
-    }
-    const actividad = ACTIVIDADES_XL[normalizar(String(celda["actividad"] ?? ""))];
-    if (!actividad) {
-      detalle.push(`⚠ ${nombre}: actividad inválida (usa Consulta, Intervención u Hospitalización); ignorado.`);
-      continue;
-    }
-    const fecha = parseFecha(celda["fecha"]);
-    if (!fecha) {
-      detalle.push(`⚠ ${nombre}: fecha inválida (usa AAAA-MM-DD o DD/MM/AAAA); ignorado.`);
-      continue;
-    }
-
-    await db.insert(pacientes).values({
-      hospitalId,
-      nombre,
-      cedula: String(celda["cedula"] ?? celda["ci"] ?? "").trim(),
-      edad: Number(celda["edad"]) || null,
-      sexo: normalizar(String(celda["sexo"] ?? "")) === "f" ? "F" : "M",
-      categoria: categoria as "militar" | "afiliado" | "pna",
-      actividad: actividad as "consultas" | "intervenciones" | "hospitalizaciones",
-      fecha,
-    });
-    const previas = fechasPorHospital.get(hospitalId) ?? [];
-    fechasPorHospital.set(hospitalId, [...previas, fecha]);
-    registrados++;
-  }
-
-  revalidatePath("/panel");
-  revalidatePath("/pacientes");
-  // Sincroniza el reporte semanal de cada centro tocado
-  for (const [hospitalId, fechas] of fechasPorHospital) {
-    const semanas = [...new Set(fechas)].map((f) => {
-      const d = new Date(f + "T12:00:00");
-      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-      return d.toISOString().slice(0, 10);
-    });
-    for (const s of semanas) await sincronizarReporte(hospitalId, s);
-  }
-
-  return {
-    ok: `${registrados} pacientes cargados en ${fechasPorHospital.size} centro(s).`,
-    detalle: detalle.length ? detalle : undefined,
-  };
 }
