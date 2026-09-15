@@ -21,6 +21,13 @@ export default function FormularioCifras({
   historial: Reporte[];
 }) {
   const [semana, setSemana] = useState(lunesActual());
+  const [busqueda, setBusqueda] = useState("");
+  const quitarAcentos = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const visibles = busqueda.trim()
+    ? especialidades.filter((e) =>
+        quitarAcentos(e.nombre).toLowerCase().includes(quitarAcentos(busqueda).toLowerCase()),
+      )
+    : especialidades;
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(accionGuardarCifras, {});
   const [estadoXl, accionXl, pendienteXl] = useActionState<ResultadoExcel, FormData>(
     accionImportarConsultasCentro,
@@ -74,11 +81,42 @@ export default function FormularioCifras({
         </div>
 
         {/* Consultas por especialidad */}
-        <div className="px-4 pt-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6">
           <h3 className="text-[12px] font-bold uppercase tracking-wider text-tinta2">
             Cantidad de consultas por especialidad
           </h3>
+          <div className="relative">
+            <input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar especialidad…"
+              className="w-56 pl-8"
+              aria-label="Buscar especialidad"
+            />
+            <svg
+              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta3"
+              viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
+            >
+              <circle cx="9" cy="9" r="6" />
+              <path d="m14 14 4 4" strokeLinecap="round" />
+            </svg>
+            {busqueda && (
+              <button
+                type="button"
+                onClick={() => setBusqueda("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-tinta3 hover:text-tinta"
+                aria-label="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
+        {busqueda.trim() && visibles.length === 0 && (
+          <p className="px-4 pb-2 pt-3 text-[13px] text-tinta3 sm:px-6">
+            Ninguna especialidad coincide con “{busqueda}”.
+          </p>
+        )}
         <div className="overflow-x-auto px-4 pb-2 pt-2 sm:px-6">
           <table className="w-full min-w-[560px] text-[13px]">
             <thead>
@@ -91,7 +129,7 @@ export default function FormularioCifras({
               </tr>
             </thead>
             <tbody>
-              {especialidades.map((e, i) => (
+              {visibles.map((e, i) => (
                 <tr key={e.id} className={i % 2 ? "bg-papel/60" : ""}>
                   <td className="px-4 py-1.5 font-medium">{e.nombre}</td>
                   {CATS.map((c) => (
