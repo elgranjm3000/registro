@@ -129,8 +129,14 @@ export default function FormularioCifras({
               </tr>
             </thead>
             <tbody>
-              {visibles.map((e, i) => (
-                <tr key={e.id} className={i % 2 ? "bg-papel/60" : ""}>
+              {especialidades.map((e, i) => (
+                // Las filas SIEMPRE permanecen en el DOM (ocultas con CSS al filtrar)
+                // para que sus valores se envíen aunque no sean visibles.
+                <tr
+                  key={e.id}
+                  className={i % 2 ? "bg-papel/60" : ""}
+                  style={visibles.includes(e) ? undefined : { display: "none" }}
+                >
                   <td className="px-4 py-1.5 font-medium">{e.nombre}</td>
                   {CATS.map((c) => (
                     <td key={c.suf} className="px-2 py-1.5 text-center">
