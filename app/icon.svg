@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Favicon Sala Situacional DIGESALUD: banda azul institucional, cruz de salud,
+       línea roja de fechas y los tres colores de categoría -->
+  <rect width="64" height="64" rx="14" fill="#0e2a52"/>
+  <path d="M10 46 L26 30 L34 38 L54 18" stroke="#c0392b" stroke-width="4" fill="none"
+        stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <path d="M27 14h10v11h11v10H37v11H27V35H16V25h11z" fill="#ffffff"/>
+  <circle cx="20" cy="54" r="3.2" fill="#4caf6d"/>
+  <circle cx="32" cy="54" r="3.2" fill="#2f9ec7"/>
+  <circle cx="44" cy="54" r="3.2" fill="#d64541"/>
+</svg>

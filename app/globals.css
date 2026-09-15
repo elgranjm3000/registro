@@ -1,26 +1,116 @@
 @import "tailwindcss";
 
+/* ─── Sala Situacional DIGESALUD · tokens ───
+   Mundo: documento oficial militar digitalizado.
+   Profundidad: bordes sutiles + una sombra discreta. Sin saltos de superficie. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --papel: #f7f8fa;
+  --tinta: #16233b; /* azul tinta institucional */
+  --tinta-2: #4a5a74;
+  --tinta-3: #8593a8;
+  --borde: rgba(22, 35, 59, 0.12);
+  --borde-suave: rgba(22, 35, 59, 0.07);
+  --banda: #0e2a52; /* banda azul de título */
+  --banda-tinta: #dce7f5;
+  --fecha: #c0392b; /* línea roja de fechas del formato */
+  --militar: #4caf6d;
+  --afiliado: #2f9ec7;
+  --pna: #d64541;
+  --verifica: #2e7d4f;
+  --control: #eff2f6; /* inputs: más oscuros que la superficie (reciben) */
+  --elev: 0 0 0 1px rgba(22, 35, 59, 0.06), 0 1px 2px -1px rgba(22, 35, 59, 0.07),
+    0 3px 8px rgba(22, 35, 59, 0.05);
+  --r-chico: 6px;
+  --r-medio: 10px;
+  --r-grande: 14px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-papel: var(--papel);
+  --color-tinta: var(--tinta);
+  --color-tinta2: var(--tinta-2);
+  --color-tinta3: var(--tinta-3);
+  --color-borde: var(--borde);
+  --color-bordesuave: var(--borde-suave);
+  --color-banda: var(--banda);
+  --color-bandatinta: var(--banda-tinta);
+  --color-fecha: var(--fecha);
+  --color-militar: var(--militar);
+  --color-afiliado: var(--afiliado);
+  --color-pna: var(--pna);
+  --color-verifica: var(--verifica);
+  --color-control: var(--control);
+  --radius-chico: var(--r-chico);
+  --radius-medio: var(--r-medio);
+  --radius-grande: var(--r-grande);
+  --font-sans: var(--fuente-cuerpo);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--papel);
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Insignia de categoría: color reservado a MILITAR/AFILIADO/PNA en todo el sistema */
+.categoria {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.categoria::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--cat);
+}
+.categoria-militar { --cat: var(--militar); color: #2e7d4f; }
+.categoria-afiliado { --cat: var(--afiliado); color: #1f7a9e; }
+.categoria-pna { --cat: var(--pna); color: #b03a36; }
+
+input,
+select,
+textarea {
+  background: var(--control);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-chico);
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--tinta);
+  transition: border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--banda);
+  box-shadow: 0 0 0 3px rgba(14, 42, 82, 0.12);
+}
+
+button {
+  transition: transform 100ms cubic-bezier(0.23, 1, 0.32, 1), background 140ms ease;
+}
+button:active {
+  transform: scale(0.97);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
