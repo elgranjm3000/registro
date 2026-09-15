@@ -106,22 +106,50 @@ export default async function Panel() {
             <h2 className="text-[13px] font-bold uppercase tracking-wider text-tinta2">
               Reportes de esta semana
             </h2>
-            {/* Exportación con filtro */}
-            <form
-              action="/panel/reporte-semanal"
-              method="get"
-              className="flex flex-wrap items-end gap-2"
-            >
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                  Semana
-                </label>
-                <input type="date" name="semana" defaultValue={semana} required />
-              </div>
-              <button className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel">
-                ⤓ Descargar Excel
-              </button>
-            </form>
+            {/* Exportaciones con filtro */}
+            <div className="flex flex-wrap items-end gap-2">
+              <form action="/panel/reporte-pdf" method="get" className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
+                    Semana
+                  </label>
+                  <input type="date" name="semana" defaultValue={semana} required />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
+                    Hospital
+                  </label>
+                  <select name="hospital" defaultValue="todos" className="h-9 max-w-56">
+                    <option value="todos">Todos los centros</option>
+                    {centros.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
+                    Tipo
+                  </label>
+                  <select name="tipo" defaultValue="todos" className="h-9">
+                    <option value="todos">Todos</option>
+                    <option value="consultas">Consultas</option>
+                    <option value="intervenciones">Intervenciones</option>
+                    <option value="hospitalizaciones">Hospitalizaciones</option>
+                  </select>
+                </div>
+                <button className="h-9 rounded-chico bg-fecha px-4 text-[13px] font-semibold text-white hover:brightness-110">
+                  🖨 Generar PDF
+                </button>
+              </form>
+              <form action="/panel/reporte-semanal" method="get" className="flex items-end">
+                <input type="hidden" name="semana" value={semana} />
+                <button className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel">
+                  ⤓ Excel
+                </button>
+              </form>
+            </div>
           </div>
           <div className="overflow-x-auto rounded-grande bg-white shadow-[var(--elev)]">
             <table className="w-full min-w-[720px] text-[13px]">
