@@ -81,20 +81,20 @@ export default function FormularioCifras({
         </div>
 
         {/* Consultas por especialidad */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6">
+        <div className="px-4 pt-4 sm:px-6">
           <h3 className="text-[12px] font-bold uppercase tracking-wider text-tinta2">
             Cantidad de consultas por especialidad
           </h3>
-          <div className="relative">
+          <div className="relative mt-2 w-fit">
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar especialidad…"
-              className="w-56 pl-8"
+              className="w-56 !bg-white pl-8"
               aria-label="Buscar especialidad"
             />
             <svg
-              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta3"
+              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 bg-transparent text-tinta3"
               viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
             >
               <circle cx="9" cy="9" r="6" />
@@ -104,7 +104,7 @@ export default function FormularioCifras({
               <button
                 type="button"
                 onClick={() => setBusqueda("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-tinta3 hover:text-tinta"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent text-[11px] font-semibold text-tinta3 hover:text-tinta"
                 aria-label="Limpiar búsqueda"
               >
                 ✕
