@@ -41,6 +41,23 @@ export default async function ReportePdf({
     .where(and(...condiciones))
     .orderBy(hospitales.nombre);
 
+  // Con "todos": se listan TODOS los centros activos (0 para los que no cargaron)
+  const reportePorHospital = new Map(filas.map((f) => [f.h.id, f]));
+  const centrosListado =
+    hospitalFiltro === "todos"
+      ? centros.filter((c) => c.activo)
+      : filas.map((f) => f.h);
+  const repDe = (hospitalId: number) =>
+    reportePorHospital.get(hospitalId)?.r ?? null;
+  const totalDe = (r: typeof reportes.$inferSelect | null, tt: string) =>
+    r
+      ? Number(r[`${tt}Militar` as keyof typeof r]) +
+        Number(r[`${tt}Afiliado` as keyof typeof r]) +
+        Number(r[`${tt}Pna` as keyof typeof r])
+      : 0;
+  const catDe = (r: typeof reportes.$inferSelect | null, tt: string, catNombre: string) =>
+    r ? Number(r[`${tt}${catNombre}` as keyof typeof r]) : 0;
+
   const sumaDe = (r: typeof reportes.$inferSelect, t: string) => {
     const tipos =
       tipo === "todos" ? ["consultas", "intervenciones", "hospitalizaciones"] : [tipo];
@@ -192,47 +209,37 @@ export default async function ReportePdf({
               </tr>
             </thead>
             <tbody>
-              {filas.map((f, i) => {
-                const t = (tt: string) =>
-                  Number(f.r[`${tt}Militar` as keyof typeof f.r]) +
-                  Number(f.r[`${tt}Afiliado` as keyof typeof f.r]) +
-                  Number(f.r[`${tt}Pna` as keyof typeof f.r]);
-                const c = t("consultas"), iv = t("intervenciones"), h = t("hospitalizaciones");
+              {centrosListado.map((h, i) => {
+                const r = repDe(h.id);
+                const c = totalDe(r, "consultas");
+                const iv = totalDe(r, "intervenciones");
+                const hh = totalDe(r, "hospitalizaciones");
                 return (
-                  <tr key={f.r.id}>
+                  <tr key={h.id}>
                     <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
-                    <td className="border border-tinta/60 px-2 py-1">{f.h.nombre}, {f.h.ubicacion}</td>
+                    <td className="border border-tinta/60 px-2 py-1">{h.nombre}, {h.ubicacion}</td>
                     <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(c).padStart(2, "0")}</td>
                     <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(iv).padStart(2, "0")}</td>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(h).padStart(2, "0")}</td>
-                    <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">{c + iv + h}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(hh).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">{c + iv + hh}</td>
                   </tr>
                 );
               })}
-              {filas.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
-                    Sin datos cargados para esta selección.
-                  </td>
-                </tr>
-              )}
-              {filas.length > 0 && (
-                <tr className="bg-[#dce7f5] font-bold">
-                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
-                    TOTAL
-                  </td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                    {filas.reduce((a, f) => a + Number(f.r.consultasMilitar) + Number(f.r.consultasAfiliado) + Number(f.r.consultasPna), 0)}
-                  </td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                    {filas.reduce((a, f) => a + Number(f.r.intervencionesMilitar) + Number(f.r.intervencionesAfiliado) + Number(f.r.intervencionesPna), 0)}
-                  </td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                    {filas.reduce((a, f) => a + Number(f.r.hospitalizacionesMilitar) + Number(f.r.hospitalizacionesAfiliado) + Number(f.r.hospitalizacionesPna), 0)}
-                  </td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
-                </tr>
-              )}
+              <tr className="bg-[#dce7f5] font-bold">
+                <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
+                  TOTAL
+                </td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+                  {centrosListado.reduce((a, h) => a + totalDe(repDe(h.id), "consultas"), 0)}
+                </td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+                  {centrosListado.reduce((a, h) => a + totalDe(repDe(h.id), "intervenciones"), 0)}
+                </td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+                  {centrosListado.reduce((a, h) => a + totalDe(repDe(h.id), "hospitalizaciones"), 0)}
+                </td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
+              </tr>
             </tbody>
           </table>
         ) : (
@@ -249,14 +256,15 @@ export default async function ReportePdf({
               </tr>
             </thead>
             <tbody>
-              {filas.map((f, i) => {
-                const m = Number(f.r[`${tipo}Militar` as keyof typeof f.r]);
-                const a = Number(f.r[`${tipo}Afiliado` as keyof typeof f.r]);
-                const p = Number(f.r[`${tipo}Pna` as keyof typeof f.r]);
+              {centrosListado.map((h, i) => {
+                const r = repDe(h.id);
+                const m = catDe(r, tipo, "Militar");
+                const a = catDe(r, tipo, "Afiliado");
+                const p = catDe(r, tipo, "PNA");
                 return (
-                  <tr key={f.r.id}>
+                  <tr key={h.id}>
                     <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
-                    <td className="border border-tinta/60 px-2 py-1">{f.h.nombre}, {f.h.ubicacion}</td>
+                    <td className="border border-tinta/60 px-2 py-1">{h.nombre}, {h.ubicacion}</td>
                     <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(m).padStart(2, "0")}</td>
                     <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(a).padStart(2, "0")}</td>
                     <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(p).padStart(2, "0")}</td>
@@ -264,24 +272,15 @@ export default async function ReportePdf({
                   </tr>
                 );
               })}
-              {filas.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
-                    Sin datos cargados para esta selección.
-                  </td>
-                </tr>
-              )}
-              {filas.length > 0 && (
-                <tr className="bg-[#dce7f5] font-bold">
-                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
-                    TOTAL
-                  </td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Militar}</td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Afiliado}</td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.PNA}</td>
-                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
-                </tr>
-              )}
+              <tr className="bg-[#dce7f5] font-bold">
+                <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
+                  TOTAL
+                </td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Militar}</td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Afiliado}</td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.PNA}</td>
+                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
+              </tr>
             </tbody>
           </table>
         )}
