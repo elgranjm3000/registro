@@ -66,8 +66,8 @@ export default async function ReportePdf({
     }
   const granTotal = cat.Militar + cat.Afiliado + cat.PNA;
 
-  // Detalle por especialidad (solo del tipo elegido o de consultas en "todos")
-  const tiposConsulta = tipo === "todos" ? ["consultas"] : [tipo];
+  // Detalle por especialidad: del tipo elegido, o de todos con columna SERVICIO
+  const tiposDetalle = tipo === "todos" ? ["consultas", "intervenciones", "hospitalizaciones"] : [tipo];
   const condicionesC: SQL[] = [eq(consultas.semanaDesde, semana)];
   if (hospitalFiltro !== "todos") condicionesC.push(eq(consultas.hospitalId, Number(hospitalFiltro)));
   const filasC = await db
@@ -76,14 +76,21 @@ export default async function ReportePdf({
     .innerJoin(especialidades, eq(consultas.especialidadId, especialidades.id))
     .where(and(...condicionesC));
 
-  const porEsp = new Map<number, { nombre: string; Militar: number; Afiliado: number; PNA: number }>();
+  const ETIQUETA_TIPO: Record<string, string> = {
+    consultas: "Consulta",
+    intervenciones: "Intervención",
+    hospitalizaciones: "Hospitalización",
+  };
+  const porEsp = new Map<string, { nombre: string; tipo: string; Militar: number; Afiliado: number; PNA: number }>();
   for (const f of filasC) {
-    if (!tiposConsulta.includes(f.c.tipo)) continue;
-    const acc = porEsp.get(f.e.id) ?? { nombre: f.e.nombre, Militar: 0, Afiliado: 0, PNA: 0 };
+    if (!tiposDetalle.includes(f.c.tipo)) continue;
+    const clave = `${f.e.id}-${f.c.tipo}`;
+    const acc =
+      porEsp.get(clave) ?? { nombre: f.e.nombre, tipo: ETIQUETA_TIPO[f.c.tipo], Militar: 0, Afiliado: 0, PNA: 0 };
     acc.Militar += f.c.militar;
     acc.Afiliado += f.c.afiliado;
     acc.PNA += f.c.pna;
-    porEsp.set(f.e.id, acc);
+    porEsp.set(clave, acc);
   }
   const espLista = await db
     .select()
@@ -171,65 +178,128 @@ export default async function ReportePdf({
         <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-tinta">
           {hospitalFiltro === "todos" ? "Resumen por centro de salud" : nombreHospital}
         </h3>
-        <table className="mt-2 w-full border-collapse text-[11px]">
-          <thead>
-            <tr>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">CENTRO DE SALUD</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">MILITAR</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">AFILIADO</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">PNA</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">TOTAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map((f, i) => {
-              const m = tiposIncluidos.reduce((a, tt) => a + Number(f.r[`${tt}Militar` as keyof typeof f.r]), 0);
-              const a = tiposIncluidos.reduce((a, tt) => a + Number(f.r[`${tt}Afiliado` as keyof typeof f.r]), 0);
-              const p = tiposIncluidos.reduce((a, tt) => a + Number(f.r[`${tt}Pna` as keyof typeof f.r]), 0);
-              return (
-                <tr key={f.r.id}>
-                  <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
-                  <td className="border border-tinta/60 px-2 py-1">{f.h.nombre}, {f.h.ubicacion}</td>
-                  <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(m).padStart(2, "0")}</td>
-                  <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(a).padStart(2, "0")}</td>
-                  <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(p).padStart(2, "0")}</td>
-                  <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">{m + a + p}</td>
-                </tr>
-              );
-            })}
-            {filas.length === 0 && (
+        {tipo === "todos" ? (
+          /* Tipo Todos: una columna por tipo de servicio */
+          <table className="mt-2 w-full border-collapse text-[11px]">
+            <thead>
               <tr>
-                <td colSpan={6} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
-                  Sin datos cargados para esta selección.
-                </td>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">CENTRO DE SALUD</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">CONSULTAS</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">INTERVENCIONES</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">HOSPITALIZACIONES</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">TOTAL</th>
               </tr>
-            )}
-            {filas.length > 0 && (
-              <tr className="bg-[#dce7f5] font-bold">
-                <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
-                  TOTAL
-                </td>
-                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Militar}</td>
-                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Afiliado}</td>
-                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.PNA}</td>
-                <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
+            </thead>
+            <tbody>
+              {filas.map((f, i) => {
+                const t = (tt: string) =>
+                  Number(f.r[`${tt}Militar` as keyof typeof f.r]) +
+                  Number(f.r[`${tt}Afiliado` as keyof typeof f.r]) +
+                  Number(f.r[`${tt}Pna` as keyof typeof f.r]);
+                const c = t("consultas"), iv = t("intervenciones"), h = t("hospitalizaciones");
+                return (
+                  <tr key={f.r.id}>
+                    <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
+                    <td className="border border-tinta/60 px-2 py-1">{f.h.nombre}, {f.h.ubicacion}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(c).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(iv).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(h).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">{c + iv + h}</td>
+                  </tr>
+                );
+              })}
+              {filas.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
+                    Sin datos cargados para esta selección.
+                  </td>
+                </tr>
+              )}
+              {filas.length > 0 && (
+                <tr className="bg-[#dce7f5] font-bold">
+                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
+                    TOTAL
+                  </td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+                    {filas.reduce((a, f) => a + Number(f.r.consultasMilitar) + Number(f.r.consultasAfiliado) + Number(f.r.consultasPna), 0)}
+                  </td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+                    {filas.reduce((a, f) => a + Number(f.r.intervencionesMilitar) + Number(f.r.intervencionesAfiliado) + Number(f.r.intervencionesPna), 0)}
+                  </td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+                    {filas.reduce((a, f) => a + Number(f.r.hospitalizacionesMilitar) + Number(f.r.hospitalizacionesAfiliado) + Number(f.r.hospitalizacionesPna), 0)}
+                  </td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        ) : (
+          /* Tipo específico: desglose por categoría */
+          <table className="mt-2 w-full border-collapse text-[11px]">
+            <thead>
+              <tr>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">CENTRO DE SALUD</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">MILITAR</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">AFILIADO</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">PNA</th>
+                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">TOTAL</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filas.map((f, i) => {
+                const m = Number(f.r[`${tipo}Militar` as keyof typeof f.r]);
+                const a = Number(f.r[`${tipo}Afiliado` as keyof typeof f.r]);
+                const p = Number(f.r[`${tipo}Pna` as keyof typeof f.r]);
+                return (
+                  <tr key={f.r.id}>
+                    <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
+                    <td className="border border-tinta/60 px-2 py-1">{f.h.nombre}, {f.h.ubicacion}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(m).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(a).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(p).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">{m + a + p}</td>
+                  </tr>
+                );
+              })}
+              {filas.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
+                    Sin datos cargados para esta selección.
+                  </td>
+                </tr>
+              )}
+              {filas.length > 0 && (
+                <tr className="bg-[#dce7f5] font-bold">
+                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
+                    TOTAL
+                  </td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Militar}</td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.Afiliado}</td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{cat.PNA}</td>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">{granTotal}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
 
         {/* Detalle por especialidad */}
         {espLista.length > 0 && (
           <>
             <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-tinta">
-              Detalle por especialidad ({tiposConsulta[0] === "consultas" ? "consultas" : tituloTipo.toLowerCase()})
+              Detalle por especialidad{tipo === "todos" ? " (todos los servicios)" : ` (${tituloTipo.toLowerCase()})`}
             </h3>
             <table className="mt-2 w-full border-collapse text-[11px]">
               <thead>
                 <tr>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">ESPECIALIDAD</th>
+                  {tipo === "todos" && (
+                    <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">SERVICIO</th>
+                  )}
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">MILITAR</th>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">AFILIADO</th>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">PNA</th>
@@ -237,13 +307,15 @@ export default async function ReportePdf({
                 </tr>
               </thead>
               <tbody>
-                {espLista.map((e, i) => {
-                  const d = porEsp.get(e.id) ?? { nombre: e.nombre, Militar: 0, Afiliado: 0, PNA: 0 };
-                  if (d.Militar + d.Afiliado + d.PNA === 0) return null;
-                  return (
-                    <tr key={e.id}>
+                {[...porEsp.values()]
+                  .sort((a, b) => a.nombre.localeCompare(b.nombre) || a.tipo.localeCompare(b.tipo))
+                  .map((d, i) => (
+                    <tr key={`${d.nombre}-${d.tipo}`}>
                       <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
                       <td className="border border-tinta/60 px-2 py-1">{d.nombre}</td>
+                      {tipo === "todos" && (
+                        <td className="border border-tinta/60 px-2 py-1">{d.tipo}</td>
+                      )}
                       <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(d.Militar).padStart(2, "0")}</td>
                       <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(d.Afiliado).padStart(2, "0")}</td>
                       <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(d.PNA).padStart(2, "0")}</td>
@@ -251,10 +323,9 @@ export default async function ReportePdf({
                         {d.Militar + d.Afiliado + d.PNA}
                       </td>
                     </tr>
-                  );
-                })}
+                  ))}
                 <tr className="bg-[#dce7f5] font-bold">
-                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2}>
+                  <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={tipo === "todos" ? 3 : 2}>
                     TOTAL
                   </td>
                   <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
