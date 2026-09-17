@@ -81,6 +81,10 @@ export default function FormularioCifras({
   const granTotal = filas.reduce((a, f) => a + total(f), 0);
   const rep = historial.find((r) => r.semanaDesde === semana);
   const etiquetaTab = TIPOS.find((t) => t.valor === tab)?.etiqueta ?? "";
+  // Bloqueo: enviada (pendiente) o confirmada (verificada) no se puede editar.
+  // "rechazado" = devuelta por la Sala Situacional para corrección.
+  const bloqueado = !!rep && rep.estado !== "rechazado";
+  const devuelta = rep?.estado === "rechazado";
 
   return (
     <div className="mt-6 space-y-6">
@@ -102,11 +106,25 @@ export default function FormularioCifras({
             <input type="date" name="semanaDesde" value={semana} onChange={(e) => setSemana(e.target.value)} required />
           </div>
           {rep && (
-            <span className="rounded-full bg-verifica/10 px-3 py-1 text-[12px] font-semibold text-verifica">
-              {cargado === "si" ? "Guardado esta semana" : "Guardado (solo algunas actividades)"}
+            <span
+              className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+                devuelta ? "bg-fecha/10 text-fecha" : "bg-verifica/10 text-verifica"
+              }`}
+            >
+              {devuelta ? "Devuelta para corrección" : bloqueado ? "Enviada · bloqueada" : "Guardado"}
             </span>
           )}
         </div>
+        {bloqueado && (
+          <p className="border-b border-bordesuave bg-[#fdf3e3] px-4 py-3 text-[13px] font-semibold text-[#9a6b16] sm:px-6">
+            🔒 Esta semana ya fue enviada y no se puede modificar. Solo la Sala Situacional puede reabrirla.
+          </p>
+        )}
+        {devuelta && (
+          <p className="border-b border-bordesuave bg-fecha/10 px-4 py-3 text-[13px] font-semibold text-fecha sm:px-6">
+            ↩ La Sala Situacional devolvió esta semana para corrección{rep?.observacionAdmin ? `: “${rep.observacionAdmin}”` : ""}. Edita y vuelve a enviar.
+          </p>
+        )}
 
         {/* Pestañas por servicio */}
         <div className="flex gap-1 border-b border-borde bg-papel px-4 pt-2 sm:px-6" role="tablist">
@@ -156,7 +174,8 @@ export default function FormularioCifras({
           <button
             type="button"
             onClick={() => setFilas((fs) => [...fs, filaNueva(tab)])}
-            className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel"
+            disabled={bloqueado}
+            className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel disabled:opacity-50"
           >
             + Agregar en {etiquetaTab}
           </button>
@@ -206,7 +225,8 @@ export default function FormularioCifras({
                         name={`fila-${i}-esp`}
                         value={f.esp}
                         onChange={(ev) => editar(f.clave, { esp: Number(ev.target.value) })}
-                        className="w-56"
+                        disabled={bloqueado}
+                        className="w-56 disabled:opacity-60"
                         required
                       >
                         <option value="" disabled>
@@ -229,7 +249,8 @@ export default function FormularioCifras({
                           name={`fila-${i}-${c}`}
                           value={f[c]}
                           onChange={(ev) => editar(f.clave, { [c]: ev.target.value })}
-                          className="w-20 text-center"
+                          disabled={bloqueado}
+                          className="w-20 text-center disabled:opacity-60"
                         />
                       </td>
                     ))}
@@ -237,6 +258,7 @@ export default function FormularioCifras({
                     <td className="px-4 py-1.5 text-right">
                       <button
                         type="button"
+                        disabled={bloqueado}
                         onClick={() => setFilas((fs) => fs.filter((x) => x.clave !== f.clave))}
                         className="text-[12px] font-semibold text-fecha hover:underline"
                         aria-label="Quitar fila"
@@ -271,12 +293,14 @@ export default function FormularioCifras({
           {estado.error && (
             <p className="rounded-medio bg-fecha/10 px-4 py-2.5 text-[13px] font-semibold text-fecha">{estado.error}</p>
           )}
-          <button
-            disabled={pendiente}
-            className="ml-auto h-10 rounded-chico bg-banda px-5 font-semibold text-white hover:bg-[#153a6e] disabled:opacity-60"
-          >
-            {pendiente ? "Guardando…" : "Guardar servicios"}
-          </button>
+          {!bloqueado && (
+            <button
+              disabled={pendiente}
+              className="ml-auto h-10 rounded-chico bg-banda px-5 font-semibold text-white hover:bg-[#153a6e] disabled:opacity-60"
+            >
+              {pendiente ? "Enviando…" : "Enviar carga"}
+            </button>
+          )}
         </div>
       </form>
 

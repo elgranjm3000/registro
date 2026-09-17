@@ -102,7 +102,13 @@ export default function FormularioReporte({ historial }: { historial: Reporte[] 
         </div>
       </div>
 
-      <aside>
+      <aside className="space-y-4">
+        <a
+          href={`/reportar/impresion?semana=${semanaDesde}&tipo=todos`}
+          className="block rounded-grande bg-banda px-5 py-3 text-center text-[13px] font-semibold text-white hover:bg-[#153a6e]"
+        >
+          🖨 Generar mi reporte de la semana
+        </a>
         <div className="rounded-grande bg-white p-5 shadow-[var(--elev)]">
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-tinta2">
             Historial de semanas enviadas

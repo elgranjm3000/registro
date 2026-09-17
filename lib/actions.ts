@@ -112,6 +112,17 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
     return n < 0 ? 0 : n;
   };
 
+  const [yaEnviado] = await db
+    .select()
+    .from(reportes)
+    .where(and(eq(reportes.hospitalId, hospitalId), eq(reportes.semanaDesde, semanaDesde)));
+  if (yaEnviado && yaEnviado.estado !== "rechazado")
+    return {
+      error:
+        "Esta semana ya fue enviada y está bloqueada. Solo la Sala Situacional puede modificarla"
+        + (yaEnviado.observacionAdmin ? ` — Observación: “${yaEnviado.observacionAdmin}”` : "") + ".",
+    };
+
   const espLista = await db.select().from(especialidades).where(eq(especialidades.activa, true));
   const espValidas = new Map(espLista.map((e) => [e.id, e.nombre]));
   const TIPOS = ["consultas", "intervenciones", "hospitalizaciones"] as const;
@@ -152,11 +163,33 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
     );
   }
 
+  await db
+    .update(reportes)
+    .set({ estado: "pendiente", actualizadoEn: new Date().toISOString() })
+    .where(and(eq(reportes.hospitalId, hospitalId), eq(reportes.semanaDesde, semanaDesde)));
+
   await sincronizarReporte(sesion.hospitalId, semanaDesde);
   revalidatePath("/consultas");
   if (totalServicios === 0)
-    return { ok: "Se vaciaron las filas de la semana." };
-  return { ok: `Cifras guardadas (${totalServicios} servicios). El reporte está actualizado.` };
+    return { ok: "Filas vaciadas. La semana quedó bloqueada." };
+  return { ok: `Cifras enviadas (${totalServicios} servicios). La semana quedó bloqueada; para corregir, solicita a la Sala Situacional.` };
+}
+
+// El admin reabre una carga para que el centro la corrija (estado: rechazado = abierta)
+export async function accionAbrirReporte(fd: FormData) {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return;
+  const id = Number(fd.get("id"));
+  if (!id) return;
+  await db
+    .update(reportes)
+    .set({
+      estado: "rechazado",
+      observacionAdmin: String(fd.get("observacionAdmin") ?? "Abierta para corrección"),
+      actualizadoEn: new Date().toISOString(),
+    })
+    .where(eq(reportes.id, id));
+  revalidatePath("/panel");
 }
 
 // ─── Especialidades (admin) ───

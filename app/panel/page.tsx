@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { bitacora, hospitales, reportes } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
 import Encabezado from "@/components/Encabezado";
+import { accionAbrirReporte } from "@/lib/actions";
 import Graficos from "./Graficos";
 import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
 
@@ -154,12 +155,13 @@ export default async function Panel() {
                   <th className="px-2 py-2.5 text-center font-semibold">Interv.</th>
                   <th className="px-2 py-2.5 text-center font-semibold">Hosp.</th>
                   <th className="px-2 py-2.5 text-center font-semibold">Total</th>
+                  <th className="px-5 py-2.5 text-right font-semibold">Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {deLaSemana.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-6 text-center text-tinta3">
+                    <td colSpan={6} className="px-5 py-6 text-center text-tinta3">
                       Ningún centro ha reportado esta semana todavía.
                     </td>
                   </tr>
@@ -184,6 +186,26 @@ export default async function Panel() {
                       <td className="px-2 py-2.5 text-center font-semibold">{t("hospitalizaciones")}</td>
                       <td className="px-5 py-2.5 text-center font-bold text-banda">
                         {t("consultas") + t("intervenciones") + t("hospitalizaciones")}
+                      </td>
+                      <td className="px-5 py-2.5">
+                        {r.estado !== "rechazado" && (
+                          <form action={accionAbrirReporte} className="flex justify-end gap-2">
+                            <input type="hidden" name="id" value={r.id} />
+                            <input
+                              name="observacionAdmin"
+                              placeholder="Motivo de reapertura"
+                              className="w-40 text-[12px]"
+                            />
+                            <button className="h-8 rounded-chico border border-fecha/40 px-3 text-[12px] font-semibold text-fecha hover:bg-fecha/10">
+                              Abrir p/ corrección
+                            </button>
+                          </form>
+                        )}
+                        {r.estado === "rechazado" && (
+                          <span className="block text-right text-[11px] font-semibold text-fecha">
+                            Abierta al centro
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
