@@ -28,14 +28,10 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
             PARA LA DEFENSA
           </div>
           <div className="h-10 w-px bg-banda/40" />
-          <div className="flex flex-1 items-center justify-center gap-2">
+          <div className="flex flex-1 items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logos/digesalud.png" alt="Sello DIGESALUD" className="h-9 w-auto" />
-            <div className="text-[14px] font-bold text-banda">DIGESALUD</div>
+            <img src="/logos/digesalud.png" alt="Sello DIGESALUD" className="h-10 w-auto" />
           </div>
-        </div>
-        <div className="mt-2 text-[10px] font-medium text-tinta3">
-          FUENTE: SALA SITUACIONAL / DIGESALUD · {d.nombreHospital}
         </div>
 
         {/* Banda de título */}
@@ -181,6 +177,10 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
             <TablaDetalle filas={d.detalle} conCentro={d.hospitalFiltro === "todos"} />
           </>
         )}
+
+        <div className="mt-10 border-t border-bordesuave pt-3 text-[11px] font-bold text-tinta2">
+          FUENTE: SALA SITUACIONAL / DIGESALUD · {d.nombreHospital}
+        </div>
       </div>
     </div>
   );

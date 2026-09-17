@@ -138,9 +138,8 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
           <Text style={[s.membreteTxt, { fontSize: 11 }]}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
           <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "33%" }}>
-            <Image src={logo("digesalud")} style={{ height: 32, width: 40, objectFit: "contain" }} />
-            <Text style={[s.membreteTxt, { fontSize: 13 }]}>DIGESALUD</Text>
+          <View style={{ width: "33%", alignItems: "center" }}>
+            <Image src={logo("digesalud")} style={{ height: 34, width: 42, objectFit: "contain" }} />
           </View>
         </View>
         <Text style={s.fuente}>{d.nombreHospital}</Text>
