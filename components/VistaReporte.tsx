@@ -3,6 +3,9 @@ import { formatoMilitar } from "@/lib/fechas";
 
 const COL = { Militar: "#4caf6d", Afiliado: "#2f9ec7", PNA: "#d64541" };
 
+// Formato numérico del formato oficial: 25.602
+const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
 // Vista del reporte con formato oficial (usada por el admin y por cada centro).
 // No incluye controles de navegación: esos los pone cada página.
 export default function VistaReporte({ d }: { d: DatosReporte }) {
@@ -112,19 +115,19 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
                 </td>
                 {porTipo ? (
                   <>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(f.consultas).padStart(2, "0")}</td>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(f.intervenciones).padStart(2, "0")}</td>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(f.hospitalizaciones).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(f.consultas)}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(f.intervenciones)}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(f.hospitalizaciones)}</td>
                   </>
                 ) : (
                   <>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(f.militar).padStart(2, "0")}</td>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(f.afiliado).padStart(2, "0")}</td>
-                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(f.pna).padStart(2, "0")}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(f.militar)}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(f.afiliado)}</td>
+                    <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(f.pna)}</td>
                   </>
                 )}
                 <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">
-                  {String(f.consultas + f.intervenciones + f.hospitalizaciones).padStart(2, "0")}
+                  {fmt(f.consultas + f.intervenciones + f.hospitalizaciones)}
                 </td>
               </tr>
             ))}
@@ -191,11 +194,11 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
                 )}
                 <td className="border border-tinta/60 px-2 py-1">{x.especialidad}</td>
                 {porTipo && <td className="border border-tinta/60 px-2 py-1">{x.tipo}</td>}
-                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(x.Militar).padStart(2, "0")}</td>
-                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(x.Afiliado).padStart(2, "0")}</td>
-                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{String(x.PNA).padStart(2, "0")}</td>
+                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.Militar)}</td>
+                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.Afiliado)}</td>
+                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.PNA)}</td>
                 <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">
-                  {String(x.Militar + x.Afiliado + x.PNA).padStart(2, "0")}
+                  {fmt(x.Militar + x.Afiliado + x.PNA)}
                 </td>
               </tr>
             ))}

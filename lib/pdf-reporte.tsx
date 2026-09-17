@@ -1,9 +1,15 @@
 import React from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Document, Page, Text, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Svg, Path, Image, Font } from "@react-pdf/renderer";
 import type { DatosReporte } from "./reporte-datos";
 import { formatoMilitar } from "./fechas";
+
+// Nunca dividir palabras con guiones: cada palabra queda completa en su línea.
+Font.registerHyphenationCallback((word) => [word]);
+
+// Formato numérico del formato oficial: 25.602
+const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 const AZUL = "#0e2a52";
 const ROJO = "#c0392b";
@@ -27,10 +33,7 @@ const s = StyleSheet.create({
   banda: { marginTop: 10, backgroundColor: "#dce7f5", paddingVertical: 8, textAlign: "center" },
   bandaTitulo: { fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 },
   bandaFechas: { fontSize: 10, fontWeight: 700, color: ROJO, marginTop: 2 },
-  panel: { flexDirection: "row", alignItems: "center", marginTop: 14, borderWidth: 1, borderColor: "rgba(14,42,82,.4)", padding: 14, gap: 30 },
-  totalBox: { backgroundColor: "#dce7f5", paddingVertical: 10, paddingHorizontal: 26, alignItems: "center" },
-  totalLbl: { fontSize: 9, fontWeight: 700, color: AZUL, textTransform: "uppercase" },
-  totalNum: { fontSize: 32, fontWeight: 700, marginTop: 2 },
+  panel: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 14, borderWidth: 1, borderColor: "rgba(14,42,82,.4)", padding: 14, gap: 30 },
   leyenda: { marginTop: 10, gap: 4 },
   leyendaFila: { flexDirection: "row", alignItems: "center", gap: 6, fontSize: 9, fontWeight: 700 },
   swatch: { width: 8, height: 8, borderRadius: 2 },
@@ -50,13 +53,13 @@ function segmentoDona(cx: number, cy: number, rExt: number, rInt: number, a0: nu
   return `M ${p(rExt, a0)} A ${rExt} ${rExt} 0 ${grande} 1 ${p(rExt, a1)} L ${p(rInt, a1)} A ${rInt} ${rInt} 0 ${grande} 0 ${p(rInt, a0)} Z`;
 }
 
-function Dona({ cat, total }: { cat: DatosReporte["cat"]; total: number }) {
+function Dona({ cat, total, etiqueta }: { cat: DatosReporte["cat"]; total: number; etiqueta: string }) {
   const segmentos = (["Militar", "Afiliado", "PNA"] as const).map((k) => ({ k, v: cat[k], color: COL[k] }))
     .filter((x) => x.v > 0);
   let a = 0;
   const rad = (deg: number) => ((deg - 90) * Math.PI) / 180;
   return (
-    <Svg width={170} height={170} viewBox="0 0 200 200">
+    <Svg width={190} height={190} viewBox="0 0 200 200">
       {total === 0 ? (
         <Path d="" />
       ) : segmentos.length === 1 ? (
@@ -96,13 +99,22 @@ function Dona({ cat, total }: { cat: DatosReporte["cat"]; total: number }) {
           );
         })
       )}
+      {/* Centro de la dona: TOTAL / SERVICIO / cifra — como el formato oficial */}
+      <Text x={100} y={92} fill="#16233b" style={{ fontSize: 10, fontWeight: 700, textAnchor: "middle" }}>
+        TOTAL
+      </Text>
+      <Text x={100} y={104} fill="#16233b" style={{ fontSize: 9, fontWeight: 700, textAnchor: "middle" }}>
+        {etiqueta}
+      </Text>
+      <Text x={100} y={122} fill="#16233b" style={{ fontSize: 15, fontWeight: 700, textAnchor: "middle" }}>
+        {fmt(total)}
+      </Text>
     </Svg>
   );
 }
 
 export function DocumentoReporte({ d }: { d: DatosReporte }) {
   const porTipo = d.tipo === "todos";
-  const colsDetalle = 3 + (d.hospitalFiltro === "todos" ? 1 : 0) + (porTipo ? 1 : 0);
 
   return (
     <Document
@@ -126,9 +138,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
             <Text style={[s.membreteTxt, { fontSize: 12, textAlign: "left" }]}>DIGESALUD</Text>
           </View>
         </View>
-        <Text style={s.fuente}>
-          FUENTE: SALA SITUACIONAL / DIGESALUD · {d.nombreHospital}
-        </Text>
+        <Text style={s.fuente}>{d.nombreHospital}</Text>
 
         <View style={s.banda}>
           <Text style={s.bandaTitulo}>Distribución de {d.tituloTipo} en la Red de Salud Militar</Text>
@@ -138,18 +148,14 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         </View>
 
         <View style={s.panel}>
-          <Dona cat={d.cat} total={d.granTotal} />
-          <View style={{ flex: 1, alignItems: "center", gap: 12 }}>
-            <View style={s.totalBox}>
-              <Text style={s.totalLbl}>Total de {d.tituloTipo.toLowerCase()}</Text>
-              <Text style={s.totalNum}>{d.granTotal}</Text>
-            </View>
-            <View style={s.leyenda}>
+          <View style={{ alignItems: "center" }}>
+            <Dona cat={d.cat} total={d.granTotal} etiqueta={d.tituloTipo} />
+            <View style={[s.leyenda, { flexDirection: "row", gap: 18 }]}>
               {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
                 <View key={k} style={s.leyendaFila}>
                   <View style={[s.swatch, { backgroundColor: COL[k] }]} />
-                  <Text style={{ width: 54 }}>{k}</Text>
-                  <Text>{d.cat[k]}</Text>
+                  <Text>{k.toUpperCase()}</Text>
+                  <Text>{fmt(d.cat[k])}</Text>
                   <Text style={{ color: GRIS }}>
                     ({d.granTotal ? Math.round((d.cat[k] / d.granTotal) * 100) : 0}%)
                   </Text>
@@ -188,19 +194,19 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
               <Text style={[s.td, { flex: 1 }]}>{f.nombre}, {f.ubicacion}</Text>
               {porTipo ? (
                 <>
-                  <Text style={[s.tdR, { width: 70 }]}>{String(f.consultas).padStart(2, "0")}</Text>
-                  <Text style={[s.tdR, { width: 100 }]}>{String(f.intervenciones).padStart(2, "0")}</Text>
-                  <Text style={[s.tdR, { width: 90 }]}>{String(f.hospitalizaciones).padStart(2, "0")}</Text>
+                  <Text style={[s.tdR, { width: 70 }]}>{fmt(f.consultas)}</Text>
+                  <Text style={[s.tdR, { width: 100 }]}>{fmt(f.intervenciones)}</Text>
+                  <Text style={[s.tdR, { width: 90 }]}>{fmt(f.hospitalizaciones)}</Text>
                 </>
               ) : (
                 <>
-                  <Text style={[s.tdR, { width: 60 }]}>{String(f.militar).padStart(2, "0")}</Text>
-                  <Text style={[s.tdR, { width: 60 }]}>{String(f.afiliado).padStart(2, "0")}</Text>
-                  <Text style={[s.tdR, { width: 50 }]}>{String(f.pna).padStart(2, "0")}</Text>
+                  <Text style={[s.tdR, { width: 60 }]}>{fmt(f.militar)}</Text>
+                  <Text style={[s.tdR, { width: 60 }]}>{fmt(f.afiliado)}</Text>
+                  <Text style={[s.tdR, { width: 50 }]}>{fmt(f.pna)}</Text>
                 </>
               )}
               <Text style={[s.tdR, { width: 55, fontWeight: 700 }]}>
-                {String(f.consultas + f.intervenciones + f.hospitalizaciones).padStart(2, "0")}
+                {fmt(f.consultas + f.intervenciones + f.hospitalizaciones)}
               </Text>
             </View>
           ))}
@@ -254,11 +260,11 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
                 {d.hospitalFiltro === "todos" && <Text style={[s.td, { flex: 1.2 }]}>{x.hospital}</Text>}
                 <Text style={[s.td, { flex: 1 }]}>{x.especialidad}</Text>
                 {porTipo && <Text style={[s.td, { width: 85 }]}>{x.tipo}</Text>}
-                <Text style={[s.tdR, { width: 55 }]}>{String(x.Militar).padStart(2, "0")}</Text>
-                <Text style={[s.tdR, { width: 55 }]}>{String(x.Afiliado).padStart(2, "0")}</Text>
-                <Text style={[s.tdR, { width: 45 }]}>{String(x.PNA).padStart(2, "0")}</Text>
+                <Text style={[s.tdR, { width: 55 }]}>{fmt(x.Militar)}</Text>
+                <Text style={[s.tdR, { width: 55 }]}>{fmt(x.Afiliado)}</Text>
+                <Text style={[s.tdR, { width: 45 }]}>{fmt(x.PNA)}</Text>
                 <Text style={[s.tdR, { width: 50, fontWeight: 700 }]}>
-                  {String(x.Militar + x.Afiliado + x.PNA).padStart(2, "0")}
+                  {fmt(x.Militar + x.Afiliado + x.PNA)}
                 </Text>
               </View>
             ))}
@@ -290,7 +296,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           fixed
           style={{ position: "absolute", bottom: 14, left: 28, right: 28, fontSize: 7, color: GRIS, textAlign: "center" }}
           render={({ pageNumber, totalPages }) =>
-            `Sala Situacional / DIGESALUD · Semana ${formatoMilitar(d.semana)} · Página ${pageNumber} de ${totalPages}`
+            `FUENTE: Sala Situacional / DIGESALUD · Semana del ${formatoMilitar(d.semana)} al ${formatoMilitar(d.semanaHasta)} · Página ${pageNumber} de ${totalPages}`
           }
         />
       </Page>
