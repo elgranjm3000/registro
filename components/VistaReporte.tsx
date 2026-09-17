@@ -12,18 +12,32 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
     <div className="bg-white print:bg-white">
       <div className="mx-auto max-w-4xl px-6 py-6">
         {/* Membrete oficial */}
-        <div className="grid grid-cols-3 items-center border-b-2 border-banda pb-3 text-center">
-          <div className="text-[11px] font-bold leading-tight text-banda">
-            REPÚBLICA BOLIVARIANA
-            <br />
-            DE VENEZUELA
+        <div className="flex items-center gap-3 border-b-2 border-banda pb-3 text-center">
+          <div className="flex flex-1 items-center justify-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logos/bandera.png" alt="Bandera de Venezuela" className="h-9 w-auto" />
+            <div className="text-left text-[11px] font-bold leading-tight text-banda">
+              REPÚBLICA BOLIVARIANA
+              <br />
+              DE VENEZUELA
+            </div>
           </div>
-          <div className="text-[11px] font-bold leading-tight text-banda">
-            MINISTERIO DEL PODER POPULAR
-            <br />
-            PARA LA DEFENSA
+          <div className="h-10 w-px bg-banda/40" />
+          <div className="flex flex-1 items-center justify-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logos/escudo.png" alt="Escudo Nacional" className="h-9 w-auto" />
+            <div className="text-[11px] font-bold leading-tight text-banda">
+              MINISTERIO DEL PODER POPULAR
+              <br />
+              PARA LA DEFENSA
+            </div>
           </div>
-          <div className="text-[13px] font-bold text-banda">DIGESALUD</div>
+          <div className="h-10 w-px bg-banda/40" />
+          <div className="flex flex-1 items-center justify-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logos/digesalud.png" alt="Sello DIGESALUD" className="h-9 w-auto" />
+            <div className="text-[13px] font-bold text-banda">DIGESALUD</div>
+          </div>
         </div>
         <div className="mt-2 text-[10px] font-medium text-tinta3">
           FUENTE: SALA SITUACIONAL / DIGESALUD · {d.nombreHospital}

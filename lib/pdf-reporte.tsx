@@ -1,5 +1,7 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Svg, Path } from "@react-pdf/renderer";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { Document, Page, Text, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
 import type { DatosReporte } from "./reporte-datos";
 import { formatoMilitar } from "./fechas";
 
@@ -8,31 +10,13 @@ const ROJO = "#c0392b";
 const COL = { Militar: "#4caf6d", Afiliado: "#2f9ec7", PNA: "#d64541" };
 const GRIS = "#8593a8";
 
-// Escudo institucional simplificado (estrella dentro de escudo con laureles).
-// Sustituible por el logo oficial cuando se disponga del archivo.
-function Estrella({ cx, cy, r, fill }: { cx: number; cy: number; r: number; fill: string }) {
-  const pts: string[] = [];
-  for (let i = 0; i < 10; i++) {
-    const rr = i % 2 === 0 ? r : r * 0.42;
-    const a = (Math.PI / 5) * i - Math.PI / 2;
-    pts.push(`${(cx + rr * Math.cos(a)).toFixed(2)},${(cy + rr * Math.sin(a)).toFixed(2)}`);
+const cacheLogos = new Map<string, string>();
+function logo(nombre: string): string {
+  if (!cacheLogos.has(nombre)) {
+    const buf = readFileSync(join(process.cwd(), "public", "logos", `${nombre}.png`));
+    cacheLogos.set(nombre, `data:image/png;base64,${buf.toString("base64")}`);
   }
-  return <Path d={`M ${pts.join(" L ")} Z`} fill={fill} />;
-}
-
-function Escudo({ x, y, size }: { x: number; y: number; size: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 40 40" style={{ marginRight: 6 }}>
-      <Path
-        d="M 20 2 C 27 6, 33 7, 37 7 C 37 20, 34 31, 20 38 C 6 31, 3 20, 3 7 C 7 7, 13 6, 20 2 Z"
-        fill="#0e2a52"
-        stroke="#b8912f"
-        strokeWidth={1.4}
-      />
-      <Estrella cx={20} cy={17} r={7.5} fill="#f5c542" />
-      <Path d="M 10 27 Q 20 32 30 27" fill="none" stroke="#b8912f" strokeWidth={1.2} />
-    </Svg>
-  );
+  return cacheLogos.get(nombre)!;
 }
 
 const s = StyleSheet.create({
@@ -127,13 +111,18 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
     >
       <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.membrete}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "33%" }}>
-            <Escudo x={0} y={0} size={26} />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "33%" }}>
+            <Image src={logo("bandera")} style={{ height: 32, width: 55, objectFit: "contain" }} />
             <Text style={[s.membreteTxt, { textAlign: "left" }]}>REPÚBLICA BOLIVARIANA{"\n"}DE VENEZUELA</Text>
           </View>
-          <Text style={s.membreteTxt}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "33%" }}>
-            <Escudo x={0} y={0} size={26} />
+          <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "30%" }}>
+            <Image src={logo("escudo")} style={{ height: 30, width: 38, objectFit: "contain" }} />
+            <Text style={s.membreteTxt}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
+          </View>
+          <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "33%" }}>
+            <Image src={logo("digesalud")} style={{ height: 32, width: 40, objectFit: "contain" }} />
             <Text style={[s.membreteTxt, { fontSize: 12, textAlign: "left" }]}>DIGESALUD</Text>
           </View>
         </View>
