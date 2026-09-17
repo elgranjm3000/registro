@@ -18,6 +18,8 @@ export type FilaCentro = {
   pna: number;
 };
 
+export type CatPorTipo = { Militar: number; Afiliado: number; PNA: number; total: number };
+
 export type DatosReporte = {
   semana: string;
   semanaHasta: string;
@@ -28,6 +30,7 @@ export type DatosReporte = {
   tiposIncluidos: string[];
   centros: FilaCentro[];
   cat: { Militar: number; Afiliado: number; PNA: number };
+  porTipo: Record<"consultas" | "intervenciones" | "hospitalizaciones", CatPorTipo>;
   granTotal: number;
   detalle: {
     hospital: string;
@@ -102,6 +105,18 @@ export async function obtenerDatosReporte(opts: {
   }
   const granTotal = cat.Militar + cat.Afiliado + cat.PNA;
 
+  // Totales por servicio (para las tortas por actividad)
+  const porTipo = Object.fromEntries(
+    (["consultas", "intervenciones", "hospitalizaciones"] as const).map((tt) => {
+      const c = {
+        Militar: filas.reduce((a, f) => a + num(f.r, tt, "Militar"), 0),
+        Afiliado: filas.reduce((a, f) => a + num(f.r, tt, "Afiliado"), 0),
+        PNA: filas.reduce((a, f) => a + num(f.r, tt, "Pna"), 0),
+      };
+      return [tt, { ...c, total: c.Militar + c.Afiliado + c.PNA }];
+    }),
+  ) as DatosReporte["porTipo"];
+
   // Detalle por especialidad × hospital × servicio
   const tiposDetalle = tipo === "todos" ? ["consultas", "intervenciones", "hospitalizaciones"] : [tipo];
   const condicionesC: SQL[] = [eq(consultas.semanaDesde, semana)];
@@ -150,6 +165,7 @@ export async function obtenerDatosReporte(opts: {
     tiposIncluidos,
     centros: centrosFila,
     cat,
+    porTipo,
     granTotal,
     detalle: [...detalleMap.values()].sort(
       (a, b) => a.hospital.localeCompare(b.hospital) || a.especialidad.localeCompare(b.especialidad),

@@ -56,30 +56,44 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
           </div>
         </div>
 
-        {/* Dona + cuadro de total */}
-        <div className="mt-6 grid grid-cols-[300px_1fr] items-center gap-8 border border-banda/40 p-6">
-          <Dona cat={d.cat} total={d.granTotal} />
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-full max-w-[240px] bg-[#dce7f5] px-6 py-4 text-center ring-1 ring-banda/40">
-              <div className="text-[12px] font-bold uppercase tracking-wide text-banda">
-                Total de {d.tituloTipo.toLowerCase()}
-              </div>
-              <div className="mt-1 text-[40px] font-bold leading-none text-tinta">{d.granTotal}</div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
-                <div key={k} className="flex items-center gap-2 text-[12px] font-semibold">
-                  <span className="inline-block h-3 w-3 rounded-[2px]" style={{ background: COL[k] }} />
-                  <span className="w-16">{k}</span>
-                  <span className="tabular-nums">{d.cat[k]}</span>
-                  <span className="text-tinta3">
-                    ({d.granTotal ? Math.round((d.cat[k] / d.granTotal) * 100) : 0}%)
-                  </span>
+        {/* Torta por actividad cuando el reporte abarca los tres servicios */}
+        {porTipo ? (
+          <div className="mt-6 grid gap-5 sm:grid-cols-3">
+            {(
+              [
+                ["consultas", "Consultas"],
+                ["intervenciones", "Intervenciones Quirúrgicas"],
+                ["hospitalizaciones", "Hospitalizaciones"],
+              ] as const
+            ).map(([clave, titulo]) => (
+              <PanelActividad key={clave} titulo={titulo} cat={d.porTipo[clave]} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-[300px_1fr] items-center gap-8 border border-banda/40 p-6">
+            <Dona cat={d.cat} total={d.granTotal} />
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-full max-w-[240px] bg-[#dce7f5] px-6 py-4 text-center ring-1 ring-banda/40">
+                <div className="text-[12px] font-bold uppercase tracking-wide text-banda">
+                  Total de {d.tituloTipo.toLowerCase()}
                 </div>
-              ))}
+                <div className="mt-1 text-[40px] font-bold leading-none text-tinta">{fmt(d.granTotal)}</div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
+                  <div key={k} className="flex items-center gap-2 text-[12px] font-semibold">
+                    <span className="inline-block h-3 w-3 rounded-[2px]" style={{ background: COL[k] }} />
+                    <span className="w-16">{k}</span>
+                    <span className="tabular-nums">{fmt(d.cat[k])}</span>
+                    <span className="text-tinta3">
+                      ({d.granTotal ? Math.round((d.cat[k] / d.granTotal) * 100) : 0}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Resumen por centro */}
         <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-tinta">
@@ -233,46 +247,99 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
 function Dona({
   cat,
   total,
+  titulo,
 }: {
-  cat: DatosReporte["cat"];
+  cat: DatosReporte["cat"] | DatosReporte["porTipo"]["consultas"];
   total: number;
+  titulo?: string;
 }) {
   const R = 70;
   const C = 2 * Math.PI * R;
   let offset = 0;
   const segmentos = (["Militar", "Afiliado", "PNA"] as const).map((k) => {
     const frac = total ? cat[k] / total : 0;
-    const seg = { k, color: COL[k], dash: frac * C, offset };
+    const seg = { k, color: COL[k], dash: frac * C, offset, frac };
     offset += frac * C;
     return seg;
   });
 
   return (
-    <svg viewBox="0 0 200 200" className="mx-auto h-56 w-56">
+    <svg viewBox="0 0 200 200" className="mx-auto h-52 w-52">
       <circle cx="100" cy="100" r={R} fill="none" stroke="#eef1f5" strokeWidth="34" />
       {total > 0 &&
         segmentos
           .filter((s) => s.dash > 0)
           .map((s) => (
-            <circle
-              key={s.k}
-              cx="100"
-              cy="100"
-              r={R}
-              fill="none"
-              stroke={s.color}
-              strokeWidth="34"
-              strokeDasharray={`${s.dash} ${C - s.dash}`}
-              strokeDashoffset={-s.offset}
-              transform="rotate(-90 100 100)"
-            />
+            <g key={s.k}>
+              <circle
+                cx="100"
+                cy="100"
+                r={R}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="34"
+                strokeDasharray={`${s.dash} ${C - s.dash}`}
+                strokeDashoffset={-s.offset}
+                transform="rotate(-90 100 100)"
+              />
+              {s.frac >= 0.12 && (
+                <text
+                  x={100 + 70 * Math.cos((-90 + (s.offset + s.dash / 2) * (360 / C)) * (Math.PI / 180))}
+                  y={100 + 70 * Math.sin((-90 + (s.offset + s.dash / 2) * (360 / C)) * (Math.PI / 180)) + 4}
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  className="text-[13px] font-bold"
+                >
+                  {Math.round(s.frac * 100)}%
+                </text>
+              )}
+            </g>
           ))}
-      <text x="100" y="96" textAnchor="middle" className="fill-[#16233b] text-[22px] font-bold">
-        {total}
+      {titulo && (
+        <text x="100" y="88" textAnchor="middle" className="fill-[#8593a8] text-[10px] font-semibold tracking-wider">
+          TOTAL
+        </text>
+      )}
+      <text x="100" y="106" textAnchor="middle" className="fill-[#16233b] text-[24px] font-bold">
+        {fmt(total)}
       </text>
-      <text x="100" y="114" textAnchor="middle" className="fill-[#8593a8] text-[9px] font-semibold tracking-wider">
-        TOTAL
-      </text>
+      {titulo && (
+        <text x="100" y="122" textAnchor="middle" className="fill-[#8593a8] text-[9px] font-semibold uppercase tracking-wider">
+          {titulo}
+        </text>
+      )}
     </svg>
+  );
+}
+
+// Panel por actividad: torta + leyenda + cuadro de total
+function PanelActividad({
+  titulo,
+  cat,
+}: {
+  titulo: string;
+  cat: DatosReporte["porTipo"]["consultas"];
+}) {
+  return (
+    <div className="border border-banda/40 p-4 text-center">
+      <div className="text-[12px] font-bold uppercase tracking-wide text-fecha">{titulo}</div>
+      <Dona cat={cat} total={cat.total} titulo={titulo} />
+      <div className="flex flex-col items-center gap-1">
+        {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
+          <div key={k} className="flex items-center gap-2 text-[11px] font-semibold">
+            <span className="inline-block h-2.5 w-2.5 rounded-[2px]" style={{ background: COL[k] }} />
+            <span className="w-14 text-left">{k}</span>
+            <span className="tabular-nums">{fmt(cat[k])}</span>
+            <span className="text-tinta3">
+              ({cat.total ? Math.round((cat[k] / cat.total) * 100) : 0}%)
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 bg-[#dce7f5] px-4 py-2 ring-1 ring-banda/40">
+        <div className="text-[10px] font-bold uppercase tracking-wide text-banda">Total {titulo.toLowerCase()}</div>
+        <div className="text-[24px] font-bold leading-tight text-tinta tabular-nums">{fmt(cat.total)}</div>
+      </div>
+    </div>
   );
 }

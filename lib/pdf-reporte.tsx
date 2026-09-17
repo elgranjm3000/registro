@@ -34,6 +34,9 @@ const s = StyleSheet.create({
   bandaTitulo: { fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 },
   bandaFechas: { fontSize: 10, fontWeight: 700, color: ROJO, marginTop: 2 },
   panel: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 14, borderWidth: 1, borderColor: "rgba(14,42,82,.4)", padding: 14, gap: 30 },
+  totalBox: { backgroundColor: "#dce7f5", paddingVertical: 6, paddingHorizontal: 18, alignItems: "center" },
+  totalLbl: { fontSize: 8, fontWeight: 700, color: AZUL, textTransform: "uppercase" },
+  totalNum: { fontSize: 22, fontWeight: 700, marginTop: 1 },
   leyenda: { marginTop: 10, gap: 4 },
   leyendaFila: { flexDirection: "row", alignItems: "center", gap: 6, fontSize: 9, fontWeight: 700 },
   swatch: { width: 8, height: 8, borderRadius: 2 },
@@ -103,7 +106,7 @@ function Dona({ cat, total, etiqueta }: { cat: DatosReporte["cat"]; total: numbe
       <Text x={100} y={92} fill="#16233b" style={{ fontSize: 10, fontWeight: 700, textAnchor: "middle" }}>
         TOTAL
       </Text>
-      <Text x={100} y={104} fill="#16233b" style={{ fontSize: 9, fontWeight: 700, textAnchor: "middle" }}>
+      <Text x={100} y={104} fill="#16233b" style={{ fontSize: etiqueta.length > 12 ? 7.5 : 9, fontWeight: 700, textAnchor: "middle" }}>
         {etiqueta}
       </Text>
       <Text x={100} y={122} fill="#16233b" style={{ fontSize: 15, fontWeight: 700, textAnchor: "middle" }}>
@@ -148,21 +151,52 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         </View>
 
         <View style={s.panel}>
-          <View style={{ alignItems: "center" }}>
-            <Dona cat={d.cat} total={d.granTotal} etiqueta={d.tituloTipo} />
-            <View style={[s.leyenda, { flexDirection: "row", gap: 18 }]}>
-              {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
-                <View key={k} style={s.leyendaFila}>
-                  <View style={[s.swatch, { backgroundColor: COL[k] }]} />
-                  <Text>{k.toUpperCase()}</Text>
-                  <Text>{fmt(d.cat[k])}</Text>
-                  <Text style={{ color: GRIS }}>
-                    ({d.granTotal ? Math.round((d.cat[k] / d.granTotal) * 100) : 0}%)
+          {porTipo ? (
+            (["consultas", "intervenciones", "hospitalizaciones"] as const).map((tt) => {
+              const titulo =
+                tt === "consultas" ? "Consultas" : tt === "intervenciones" ? "Intervenciones Qx" : "Hospitalizaciones";
+              const c = d.porTipo[tt];
+              return (
+                <View key={tt} style={{ alignItems: "center", flex: 1 }}>
+                  <Text style={{ fontSize: 10, fontWeight: 700, color: ROJO, textTransform: "uppercase" }}>
+                    {titulo}
                   </Text>
+                  <Dona cat={c} total={c.total} etiqueta={titulo} />
+                  <View style={[s.leyenda, { flexDirection: "row", gap: 10 }]}>
+                    {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
+                      <View key={k} style={s.leyendaFila}>
+                        <View style={[s.swatch, { backgroundColor: COL[k] }]} />
+                        <Text>{fmt(c[k])}</Text>
+                        <Text style={{ color: GRIS }}>
+                          ({c.total ? Math.round((c[k] / c.total) * 100) : 0}%)
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={[s.totalBox, { marginTop: 6, paddingVertical: 6, paddingHorizontal: 18 }]}>
+                    <Text style={s.totalLbl}>Total</Text>
+                    <Text style={[s.totalNum, { fontSize: 22 }]}>{fmt(c.total)}</Text>
+                  </View>
                 </View>
-              ))}
+              );
+            })
+          ) : (
+            <View style={{ alignItems: "center" }}>
+              <Dona cat={d.cat} total={d.granTotal} etiqueta={d.tituloTipo} />
+              <View style={[s.leyenda, { flexDirection: "row", gap: 18 }]}>
+                {(["Militar", "Afiliado", "PNA"] as const).map((k) => (
+                  <View key={k} style={s.leyendaFila}>
+                    <View style={[s.swatch, { backgroundColor: COL[k] }]} />
+                    <Text>{k.toUpperCase()}</Text>
+                    <Text>{fmt(d.cat[k])}</Text>
+                    <Text style={{ color: GRIS }}>
+                      ({d.granTotal ? Math.round((d.cat[k] / d.granTotal) * 100) : 0}%)
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* Resumen por centro */}
