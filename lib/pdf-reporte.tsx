@@ -48,6 +48,8 @@ const s = StyleSheet.create({
   swatch: { width: 8, height: 8, borderRadius: 2 },
   h3: { fontSize: 10, fontWeight: 700, marginTop: 16, marginBottom: 4, textTransform: "uppercase" },
   th: { backgroundColor: "#dce7f5", fontWeight: 700, padding: 4, borderWidth: 1, borderColor: "#44536b", fontSize: 8 },
+  bandaTabla: { backgroundColor: AZUL, color: "#ffffff", fontWeight: 700, fontSize: 9, textTransform: "uppercase", textAlign: "center", paddingVertical: 4, borderWidth: 1, borderColor: "#44536b", letterSpacing: 1 },
+  filaZebra: { backgroundColor: "#f2f6fb" },
   td: { padding: 3.5, borderWidth: 1, borderColor: "#44536b", fontSize: 8 },
   tdR: { padding: 3.5, borderWidth: 1, borderColor: "#44536b", fontSize: 8, textAlign: "right" },
   filaTotal: { backgroundColor: "#dce7f5", fontWeight: 700 },
@@ -206,30 +208,33 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         </View>
 
         {/* Resumen por centro */}
-        <Text style={s.h3}>
-          {d.hospitalFiltro === "todos" ? "Resumen por centro de salud" : d.nombreHospital}
-        </Text>
         <View>
-          <View style={{ flexDirection: "row" }} fixed wrap={false}>
-            <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
-            <Text style={[s.th, { flex: 1 }]}>CENTRO DE SALUD</Text>
-            {porTipo ? (
-              <>
-                <Text style={[s.th, { width: 70, textAlign: "right" }]}>CONSULTAS</Text>
-                <Text style={[s.th, { width: 100, textAlign: "right" }]}>INTERVENCIONES QX</Text>
-                <Text style={[s.th, { width: 90, textAlign: "right" }]}>HOSPITALIZACIONES</Text>
-              </>
-            ) : (
-              <>
-                <Text style={[s.th, { width: 60, textAlign: "right" }]}>MILITAR</Text>
-                <Text style={[s.th, { width: 60, textAlign: "right" }]}>AFILIADO</Text>
-                <Text style={[s.th, { width: 50, textAlign: "right" }]}>PNA</Text>
-              </>
-            )}
-            <Text style={[s.th, { width: 55, textAlign: "right" }]}>TOTAL</Text>
+          {/* Banda de título + encabezados: se repiten en cada salto de página */}
+          <View fixed wrap={false}>
+            <Text style={s.bandaTabla}>
+              {d.hospitalFiltro === "todos" ? "Resumen por centro de salud" : d.nombreHospital}
+            </Text>
+            <View style={{ flexDirection: "row" }}>
+              <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
+              <Text style={[s.th, { flex: 1 }]}>CENTRO DE SALUD</Text>
+              {porTipo ? (
+                <>
+                  <Text style={[s.th, { width: 70, textAlign: "right" }]}>CONSULTAS</Text>
+                  <Text style={[s.th, { width: 100, textAlign: "right" }]}>INTERVENCIONES QX</Text>
+                  <Text style={[s.th, { width: 90, textAlign: "right" }]}>HOSPITALIZACIONES</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[s.th, { width: 60, textAlign: "right" }]}>MILITAR</Text>
+                  <Text style={[s.th, { width: 60, textAlign: "right" }]}>AFILIADO</Text>
+                  <Text style={[s.th, { width: 50, textAlign: "right" }]}>PNA</Text>
+                </>
+              )}
+              <Text style={[s.th, { width: 55, textAlign: "right" }]}>TOTAL</Text>
+            </View>
           </View>
           {d.centros.map((f, i) => (
-            <View key={f.id} style={{ flexDirection: "row" }}>
+            <View key={f.id} style={[{ flexDirection: "row" }, ...(i % 2 === 1 ? [s.filaZebra] : [])]}>
               <Text style={[s.td, { width: 24, textAlign: "center" }]}>{i + 1}</Text>
               <Text style={[s.td, { flex: 1 }]}>{f.nombre}, {f.ubicacion}</Text>
               {porTipo ? (
@@ -279,15 +284,17 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         {/* Detalle por especialidad: una tabla por actividad */}
         {porTipo
           ? ACTIVIDADES_PDF.map(([clave, titulo]) => (
-              <View key={clave}>
-                <Text style={[s.h3, { color: ROJO }]}>{titulo}</Text>
-                <TablaDetallePdf filas={d.detalle.filter((x) => x.tipo === titulo)} conCentro={d.hospitalFiltro === "todos"} />
+              <View key={clave} style={{ marginTop: 14 }}>
+                <TablaDetallePdf titulo={titulo} filas={d.detalle.filter((x) => x.tipo === titulo)} conCentro={d.hospitalFiltro === "todos"} />
               </View>
             ))
           : (
-            <View>
-              <Text style={s.h3}>Detalle por especialidad ({d.tituloTipo.toLowerCase()})</Text>
-              <TablaDetallePdf filas={d.detalle} conCentro={d.hospitalFiltro === "todos"} />
+            <View style={{ marginTop: 14 }}>
+              <TablaDetallePdf
+                titulo={`Detalle de ${d.tituloTipo.toLowerCase()}`}
+                filas={d.detalle}
+                conCentro={d.hospitalFiltro === "todos"}
+              />
             </View>
           )}
         <Text
@@ -303,9 +310,11 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
 }
 
 function TablaDetallePdf({
+  titulo,
   filas,
   conCentro,
 }: {
+  titulo: string;
   filas: DatosReporte["detalle"];
   conCentro: boolean;
 }) {
@@ -313,17 +322,21 @@ function TablaDetallePdf({
     return <Text style={s.vacio}>Sin detalle cargado para esta actividad.</Text>;
   return (
     <View>
-      <View style={{ flexDirection: "row" }} fixed wrap={false}>
-        <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
-        {conCentro && <Text style={[s.th, { flex: 1.2 }]}>CENTRO</Text>}
-        <Text style={[s.th, { flex: 1 }]}>ESPECIALIDAD</Text>
-        <Text style={[s.th, { width: 55, textAlign: "right" }]}>MILITAR</Text>
-        <Text style={[s.th, { width: 55, textAlign: "right" }]}>AFILIADO</Text>
-        <Text style={[s.th, { width: 45, textAlign: "right" }]}>PNA</Text>
-        <Text style={[s.th, { width: 50, textAlign: "right" }]}>TOTAL</Text>
+      {/* Banda de título + encabezados: se repiten en cada salto de página */}
+      <View fixed wrap={false}>
+        <Text style={s.bandaTabla}>{titulo}</Text>
+        <View style={{ flexDirection: "row" }}>
+          <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
+          {conCentro && <Text style={[s.th, { flex: 1.2 }]}>CENTRO</Text>}
+          <Text style={[s.th, { flex: 1 }]}>ESPECIALIDAD</Text>
+          <Text style={[s.th, { width: 55, textAlign: "right" }]}>MILITAR</Text>
+          <Text style={[s.th, { width: 55, textAlign: "right" }]}>AFILIADO</Text>
+          <Text style={[s.th, { width: 45, textAlign: "right" }]}>PNA</Text>
+          <Text style={[s.th, { width: 50, textAlign: "right" }]}>TOTAL</Text>
+        </View>
       </View>
       {filas.map((x, i) => (
-        <View key={i} style={{ flexDirection: "row" }}>
+        <View key={i} style={[{ flexDirection: "row" }, ...(i % 2 === 1 ? [s.filaZebra] : [])]}>
           <Text style={[s.td, { width: 24, textAlign: "center" }]}>{i + 1}</Text>
           {conCentro && <Text style={[s.td, { flex: 1.2 }]}>{x.hospital}</Text>}
           <Text style={[s.td, { flex: 1 }]}>{x.especialidad}</Text>
