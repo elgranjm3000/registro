@@ -141,7 +141,11 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         <Text style={s.fuente}>{d.nombreHospital}</Text>
 
         <View style={s.banda}>
-          <Text style={s.bandaTitulo}>Distribución de {d.tituloTipo} en la Red de Salud Militar</Text>
+          <Text style={s.bandaTitulo}>
+            {d.hospitalFiltro === "todos"
+              ? "Distribución de actividades en la Red de Salud Militar"
+              : `Distribución de actividades en el ${d.nombreHospital}`}
+          </Text>
           <Text style={s.bandaFechas}>
             Desde el {formatoMilitar(d.semana)} hasta el {formatoMilitar(d.semanaHasta)}
           </Text>

@@ -34,7 +34,9 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
         {/* Banda de título */}
         <div className="mt-4 bg-[#dce7f5] px-4 py-3 text-center">
           <div className="text-[15px] font-bold uppercase tracking-wide text-tinta">
-            Distribución de {d.tituloTipo} en la Red de Salud Militar
+            {d.hospitalFiltro === "todos"
+              ? "Distribución de actividades en la Red de Salud Militar"
+              : `Distribución de actividades en el ${d.nombreHospital}`}
           </div>
           <div className="mt-0.5 text-[13px] font-bold uppercase tracking-wide text-fecha">
             Desde el {formatoMilitar(d.semana)} hasta el {formatoMilitar(d.semanaHasta)}
