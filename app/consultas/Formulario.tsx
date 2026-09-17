@@ -7,16 +7,16 @@ import { accionGuardarCifras, accionImportarConsultasCentro, type EstadoForm, ty
 import { lunesActual, viernesDe } from "@/lib/fechas";
 
 const TIPOS = [
-  { valor: "consultas", etiqueta: "Consulta" },
-  { valor: "intervenciones", etiqueta: "Intervención" },
-  { valor: "hospitalizaciones", etiqueta: "Hospitalización" },
+  { valor: "consultas", etiqueta: "Consultas" },
+  { valor: "intervenciones", etiqueta: "Intervenciones Qx" },
+  { valor: "hospitalizaciones", etiqueta: "Hospitalizaciones" },
 ] as const;
 type Tipo = (typeof TIPOS)[number]["valor"];
 
 type Fila = { clave: number; esp: number | ""; tipo: Tipo; m: string; a: string; p: string };
 
 let seq = 1;
-const filaNueva = (): Fila => ({ clave: seq++, esp: "", tipo: "consultas", m: "", a: "", p: "" });
+const filaNueva = (tipo: Tipo): Fila => ({ clave: seq++, esp: "", tipo, m: "", a: "", p: "" });
 
 export default function FormularioCifras({
   especialidades,
@@ -28,12 +28,9 @@ export default function FormularioCifras({
   historial: Reporte[];
 }) {
   const [semana, setSemana] = useState(lunesActual());
+  const [tab, setTab] = useState<Tipo>("consultas");
   const router = useRouter();
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(accionGuardarCifras, {});
-  // Al guardar: refresca los datos del servidor (panel, historial, insignia)
-  useEffect(() => {
-    if (estado.ok) router.refresh();
-  }, [estado.ok, router]);
   const [estadoXl, accionXl, pendienteXl] = useActionState<ResultadoExcel, FormData>(
     accionImportarConsultasCentro,
     {},
@@ -60,28 +57,37 @@ export default function FormularioCifras({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [semana]);
 
+  // Al guardar: refresca los datos del servidor (panel, historial, insignia)
+  useEffect(() => {
+    if (estado.ok) router.refresh();
+  }, [estado.ok, router]);
+
   const quitarAcentos = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
   const [busqueda, setBusqueda] = useState("");
+  const filasDelTab = filas.filter((f) => f.tipo === tab);
   const visibles = busqueda.trim()
-    ? filas.filter((f) => {
+    ? filasDelTab.filter((f) => {
         const e = especialidades.find((x) => x.id === f.esp);
         return e && quitarAcentos(e.nombre).toLowerCase().includes(quitarAcentos(busqueda).toLowerCase());
       })
-    : filas;
+    : filasDelTab;
 
   const editar = (clave: number, cambio: Partial<Fila>) =>
     setFilas((fs) => fs.map((f) => (f.clave === clave ? { ...f, ...cambio } : f)));
 
   const total = (f: Fila) => (Number(f.m) || 0) + (Number(f.a) || 0) + (Number(f.p) || 0);
+  const totalTab = (t: Tipo) =>
+    filas.filter((f) => f.tipo === t).reduce((a, f) => a + total(f), 0);
   const granTotal = filas.reduce((a, f) => a + total(f), 0);
   const rep = historial.find((r) => r.semanaDesde === semana);
+  const etiquetaTab = TIPOS.find((t) => t.valor === tab)?.etiqueta ?? "";
 
   return (
     <div className="mt-6 space-y-6">
       <form action={accion} className="overflow-hidden rounded-grande bg-white shadow-[var(--elev)]">
         <div className="bg-banda px-4 py-4 sm:px-6">
           <h2 className="text-[13px] font-bold uppercase tracking-wider text-bandatinta">
-            Servicios de la semana
+            Reporte semanal de actividades
           </h2>
           <span className="mt-1 block text-[12px] font-bold uppercase tracking-wide text-fecha">
             Desde el {semana.slice(8)}{semana.slice(5, 7)} hasta el {viernesDe(semana).slice(8)}{viernesDe(semana).slice(5, 7)}
@@ -97,25 +103,45 @@ export default function FormularioCifras({
           </div>
           {rep && (
             <span className="rounded-full bg-verifica/10 px-3 py-1 text-[12px] font-semibold text-verifica">
-              {cargado === "si" ? "Guardado esta semana" : "Guardado (solo actividades)"}
+              {cargado === "si" ? "Guardado esta semana" : "Guardado (solo algunas actividades)"}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => setFilas((fs) => [...fs, filaNueva()])}
-            className="ml-auto h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel"
-          >
-            + Agregar servicio
-          </button>
         </div>
 
-        {/* Buscador */}
-        <div className="px-4 pt-4 sm:px-6">
+        {/* Pestañas por servicio */}
+        <div className="flex gap-1 border-b border-borde bg-papel px-4 pt-2 sm:px-6" role="tablist">
+          {TIPOS.map((t) => (
+            <button
+              key={t.valor}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.valor}
+              onClick={() => setTab(t.valor)}
+              className={`-mb-px rounded-t-chico border border-b-0 px-4 py-2 text-[13px] font-semibold transition-colors ${
+                tab === t.valor
+                  ? "border-bordesuave bg-white text-banda"
+                  : "border-transparent text-tinta3 hover:text-tinta2"
+              }`}
+            >
+              {t.etiqueta}
+              <span
+                className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${
+                  tab === t.valor ? "bg-banda text-white" : "bg-control text-tinta2"
+                }`}
+              >
+                {totalTab(t.valor)}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Buscador + agregar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6">
           <div className="relative w-fit">
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar especialidad…"
+              placeholder={`Buscar especialidad en ${etiquetaTab}…`}
               className="w-56 !bg-white pl-8"
               aria-label="Buscar especialidad"
             />
@@ -127,16 +153,22 @@ export default function FormularioCifras({
               <path d="m14 14 4 4" strokeLinecap="round" />
             </svg>
           </div>
+          <button
+            type="button"
+            onClick={() => setFilas((fs) => [...fs, filaNueva(tab)])}
+            className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel"
+          >
+            + Agregar en {etiquetaTab}
+          </button>
         </div>
 
-        {/* Filas de servicios: cada fila = especialidad + tipo + cantidades.
-            Todas permanecen en el DOM (ocultas con CSS al filtrar) para no perder datos. */}
+        {/* Filas del servicio activo. Todas permanecen en el DOM (ocultas con CSS)
+            para que cada pestaña conserve y envíe su registro. */}
         <div className="overflow-x-auto px-4 pb-2 pt-3 sm:px-6">
-          <table className="w-full min-w-[720px] text-[13px]">
+          <table className="w-full min-w-[640px] text-[13px]">
             <thead>
               <tr className="border-b border-borde bg-[#e8eef7] text-[11px] uppercase tracking-wider text-tinta2">
                 <th className="rounded-l-chico px-4 py-2 text-left font-semibold">Especialidad</th>
-                <th className="px-2 py-2 text-left font-semibold">Servicio</th>
                 <th className="px-2 py-2 text-center font-semibold">Militar</th>
                 <th className="px-2 py-2 text-center font-semibold">Afiliado</th>
                 <th className="px-2 py-2 text-center font-semibold">PNA</th>
@@ -147,24 +179,22 @@ export default function FormularioCifras({
             <tbody>
               {filas.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-tinta3">
-                    Sin servicios cargados esta semana. Presiona “+ Agregar servicio”.
+                  <td colSpan={6} className="px-4 py-6 text-center text-tinta3">
+                    Sin registros en {etiquetaTab} esta semana. Presiona “+ Agregar en {etiquetaTab}”.
                   </td>
                 </tr>
               )}
               {filas.map((f) => {
+                const i = filas.indexOf(f);
+                const enEsteTab = f.tipo === tab;
+                const e = especialidades.find((x) => x.id === f.esp);
                 const visible =
-                  !busqueda.trim() ||
-                  (() => {
-                    const e = especialidades.find((x) => x.id === f.esp);
-                    return (
-                      e &&
+                  enEsteTab &&
+                  (!busqueda.trim() ||
+                    (e &&
                       quitarAcentos(e.nombre)
                         .toLowerCase()
-                        .includes(quitarAcentos(busqueda).toLowerCase())
-                    );
-                  })();
-                const i = filas.indexOf(f);
+                        .includes(quitarAcentos(busqueda).toLowerCase())));
                 return (
                   <tr
                     key={f.clave}
@@ -175,33 +205,21 @@ export default function FormularioCifras({
                       <select
                         name={`fila-${i}-esp`}
                         value={f.esp}
-                        onChange={(e) => editar(f.clave, { esp: Number(e.target.value) })}
+                        onChange={(ev) => editar(f.clave, { esp: Number(ev.target.value) })}
                         className="w-56"
                         required
                       >
                         <option value="" disabled>
                           Seleccionar…
                         </option>
-                        {especialidades.map((e) => (
-                          <option key={e.id} value={e.id}>
-                            {e.nombre}
+                        {especialidades.map((e2) => (
+                          <option key={e2.id} value={e2.id}>
+                            {e2.nombre}
                           </option>
                         ))}
                       </select>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <select
-                        name={`fila-${i}-tipo`}
-                        value={f.tipo}
-                        onChange={(e) => editar(f.clave, { tipo: e.target.value as Tipo })}
-                        className="w-40"
-                      >
-                        {TIPOS.map((t) => (
-                          <option key={t.valor} value={t.valor}>
-                            {t.etiqueta}
-                          </option>
-                        ))}
-                      </select>
+                      {/* El tipo viaja oculto: lo define la pestaña activa */}
+                      <input type="hidden" name={`fila-${i}-tipo`} value={f.tipo} />
                     </td>
                     {(["m", "a", "p"] as const).map((c) => (
                       <td key={c} className="px-2 py-1.5 text-center">
@@ -210,7 +228,7 @@ export default function FormularioCifras({
                           min={0}
                           name={`fila-${i}-${c}`}
                           value={f[c]}
-                          onChange={(e) => editar(f.clave, { [c]: e.target.value })}
+                          onChange={(ev) => editar(f.clave, { [c]: ev.target.value })}
                           className="w-20 text-center"
                         />
                       </td>
@@ -229,12 +247,12 @@ export default function FormularioCifras({
                   </tr>
                 );
               })}
-              {filas.length > 0 && (
+              {filasDelTab.length > 0 && (
                 <tr className="bg-[#e8eef7]">
-                  <td className="px-4 py-2 text-[12px] font-bold uppercase tracking-wider" colSpan={5}>
-                    Total general
+                  <td className="px-4 py-2 text-[12px] font-bold uppercase tracking-wider" colSpan={4}>
+                    Total {etiquetaTab}
                   </td>
-                  <td className="px-2 py-2 text-right text-[16px] font-bold text-banda">{granTotal}</td>
+                  <td className="px-2 py-2 text-right text-[16px] font-bold text-banda">{totalTab(tab)}</td>
                   <td />
                 </tr>
               )}
@@ -243,6 +261,10 @@ export default function FormularioCifras({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-bordesuave px-4 py-4 sm:px-6">
+          <span className="text-[12px] font-medium text-tinta3">
+            Total general de la semana: <strong className="text-tinta">{granTotal}</strong>
+            {" · "}Las tres pestañas se guardan juntas.
+          </span>
           {estado.ok && (
             <p className="rounded-medio bg-verifica/10 px-4 py-2.5 text-[13px] font-semibold text-verifica">{estado.ok}</p>
           )}
