@@ -7,10 +7,10 @@ import { DocumentoReporte } from "@/lib/pdf-reporte";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Descarga directa del reporte en PDF (horizontal)
+// Descarga del reporte en PDF del propio centro (horizontal)
 export async function GET(req: Request) {
   const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "admin")
+  if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const sp = new URL(req.url).searchParams;
@@ -20,14 +20,13 @@ export async function GET(req: Request) {
 
   const datos = await obtenerDatosReporte({
     semana,
-    hospital: sp.get("hospital") ?? "todos",
+    hospital: String(sesion.hospitalId),
     tipo: sp.get("tipo") ?? "todos",
   });
 
   const buffer = await renderToBuffer(<DocumentoReporte d={datos} />);
-
   const inline = sp.get("disp") === "inline";
-  const nombre = `reporte-${datos.tipo}-${semana}.pdf`;
+  const nombre = `reporte-centro-${datos.tipo}-${semana}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

@@ -7,6 +7,33 @@ const ROJO = "#c0392b";
 const COL = { Militar: "#4caf6d", Afiliado: "#2f9ec7", PNA: "#d64541" };
 const GRIS = "#8593a8";
 
+// Escudo institucional simplificado (estrella dentro de escudo con laureles).
+// Sustituible por el logo oficial cuando se disponga del archivo.
+function Estrella({ cx, cy, r, fill }: { cx: number; cy: number; r: number; fill: string }) {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 === 0 ? r : r * 0.42;
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    pts.push(`${(cx + rr * Math.cos(a)).toFixed(2)},${(cy + rr * Math.sin(a)).toFixed(2)}`);
+  }
+  return <Path d={`M ${pts.join(" L ")} Z`} fill={fill} />;
+}
+
+function Escudo({ x, y, size }: { x: number; y: number; size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 40 40" style={{ marginRight: 6 }}>
+      <Path
+        d="M 20 2 C 27 6, 33 7, 37 7 C 37 20, 34 31, 20 38 C 6 31, 3 20, 3 7 C 7 7, 13 6, 20 2 Z"
+        fill="#0e2a52"
+        stroke="#b8912f"
+        strokeWidth={1.4}
+      />
+      <Estrella cx={20} cy={17} r={7.5} fill="#f5c542" />
+      <Path d="M 10 27 Q 20 32 30 27" fill="none" stroke="#b8912f" strokeWidth={1.2} />
+    </Svg>
+  );
+}
+
 const s = StyleSheet.create({
   page: { paddingHorizontal: 28, paddingVertical: 24, fontSize: 9, fontFamily: "Helvetica", color: "#16233b" },
   membrete: { flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 2, borderBottomColor: AZUL, paddingBottom: 6 },
@@ -42,18 +69,46 @@ function Dona({ cat, total }: { cat: DatosReporte["cat"]; total: number }) {
   const segmentos = (["Militar", "Afiliado", "PNA"] as const).map((k) => ({ k, v: cat[k], color: COL[k] }))
     .filter((x) => x.v > 0);
   let a = 0;
+  const rad = (deg: number) => ((deg - 90) * Math.PI) / 180;
   return (
-    <Svg width={150} height={150} viewBox="0 0 200 200">
+    <Svg width={170} height={170} viewBox="0 0 200 200">
       {total === 0 ? (
         <Path d="" />
       ) : segmentos.length === 1 ? (
-        <Path d={segmentoDona(100, 100, 88, 54, 0, 359.99)} fill={segmentos[0].color} />
+        <>
+          <Path d={segmentoDona(100, 100, 88, 54, 0, 359.99)} fill={segmentos[0].color} />
+          <Text
+            x={100}
+            y={74}
+            fill="#ffffff"
+            style={{ fontSize: 13, fontWeight: 700, textAnchor: "middle" }}
+          >
+            {Math.round((segmentos[0].v / total) * 100)}%
+          </Text>
+        </>
       ) : (
         segmentos.map((x) => {
           const barrido = (x.v / total) * 360;
-          const d = segmentoDona(100, 100, 88, 54, a, a + barrido);
+          const inicio = a;
+          const d = segmentoDona(100, 100, 88, 54, inicio, inicio + barrido);
           a += barrido;
-          return <Path key={x.k} d={d} fill={x.color} />;
+          const ang = rad(inicio + barrido / 2);
+          const rx = 100 + 71 * Math.cos(ang);
+          const ry = 100 + 71 * Math.sin(ang);
+          return (
+            <>
+              <Path key={x.k} d={d} fill={x.color} />
+              <Text
+                key={`${x.k}-pct`}
+                x={rx}
+                y={ry + 4}
+                fill="#ffffff"
+                style={{ fontSize: 12, fontWeight: 700, textAnchor: "middle" }}
+              >
+                {Math.round((x.v / total) * 100)}%
+              </Text>
+            </>
+          );
         })
       )}
     </Svg>
@@ -72,9 +127,15 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
     >
       <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.membrete}>
-          <Text style={s.membreteTxt}>REPÚBLICA BOLIVARIANA DE VENEZUELA</Text>
-          <Text style={s.membreteTxt}>MINISTERIO DEL PODER POPULAR PARA LA DEFENSA</Text>
-          <Text style={[s.membreteTxt, { fontSize: 11 }]}>DIGESALUD</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "33%" }}>
+            <Escudo x={0} y={0} size={26} />
+            <Text style={[s.membreteTxt, { textAlign: "left" }]}>REPÚBLICA BOLIVARIANA{"\n"}DE VENEZUELA</Text>
+          </View>
+          <Text style={s.membreteTxt}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "33%" }}>
+            <Escudo x={0} y={0} size={26} />
+            <Text style={[s.membreteTxt, { fontSize: 12, textAlign: "left" }]}>DIGESALUD</Text>
+          </View>
         </View>
         <Text style={s.fuente}>
           FUENTE: SALA SITUACIONAL / DIGESALUD · {d.nombreHospital}
@@ -237,8 +298,11 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           </View>
         )}
         <Text
-          style={{ position: "absolute", bottom: 16, left: 28, fontSize: 7, color: GRIS }}
-          render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages} · Sala Situacional / DIGESALUD`}
+          fixed
+          style={{ position: "absolute", bottom: 14, left: 28, right: 28, fontSize: 7, color: GRIS, textAlign: "center" }}
+          render={({ pageNumber, totalPages }) =>
+            `Sala Situacional / DIGESALUD · Semana ${d.semana.split("-").reverse().join("")} · Página ${pageNumber} de ${totalPages}`
+          }
         />
       </Page>
     </Document>

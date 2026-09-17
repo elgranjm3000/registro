@@ -37,8 +37,10 @@ export default async function ReportePdf({
           </a>
           <div className="flex items-center gap-2">
             <a
-              href={`/panel/reporte-pdf/descarga?semana=${semana}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}`}
-              className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold leading-9 text-banda hover:bg-papel"
+              href={`/panel/reporte-pdf/descarga?semana=${semana}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}&disp=inline`}
+              target="_blank"
+              rel="noopener"
+              className="h-9 rounded-chico bg-banda px-4 text-[13px] font-semibold leading-9 text-white hover:bg-[#153a6e]"
             >
               ⤓ Descargar PDF
             </a>

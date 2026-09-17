@@ -52,6 +52,14 @@ export default async function ImpresionCentro({
                 {et}
               </a>
             ))}
+            <a
+              href={`/reportar/impresion/descarga?semana=${semana}&tipo=${tipo}&disp=inline`}
+              target="_blank"
+              rel="noopener"
+              className="rounded-chico bg-banda px-3 py-1.5 font-semibold text-white hover:bg-[#153a6e]"
+            >
+              ⤓ Descargar PDF
+            </a>
             <BotonImprimir />
           </div>
         </div>
