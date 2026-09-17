@@ -116,12 +116,7 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
     .select()
     .from(reportes)
     .where(and(eq(reportes.hospitalId, hospitalId), eq(reportes.semanaDesde, semanaDesde)));
-  if (yaEnviado && yaEnviado.estado !== "rechazado")
-    return {
-      error:
-        "Esta semana ya fue enviada y está bloqueada. Solo la Sala Situacional puede modificarla"
-        + (yaEnviado.observacionAdmin ? ` — Observación: “${yaEnviado.observacionAdmin}”` : "") + ".",
-    };
+  const soloAgregar = !!yaEnviado && yaEnviado.estado !== "rechazado";
 
   const espLista = await db.select().from(especialidades).where(eq(especialidades.activa, true));
   const espValidas = new Map(espLista.map((e) => [e.id, e.nombre]));
@@ -145,22 +140,45 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
     totalServicios += m + a + p;
   }
 
-  // Reemplaza todas las filas de la semana por lo enviado
-  await db
-    .delete(consultas)
-    .where(and(eq(consultas.hospitalId, hospitalId), eq(consultas.semanaDesde, semanaDesde)));
-  if (filas.length > 0) {
-    await db.insert(consultas).values(
-      filas.map((f) => ({
-        hospitalId,
-        especialidadId: f.especialidadId,
-        tipo: f.tipo as "consultas" | "intervenciones" | "hospitalizaciones",
-        semanaDesde,
-        militar: f.m,
-        afiliado: f.a,
-        pna: f.p,
-      })),
-    );
+  if (soloAgregar) {
+    // Semana ya enviada: lo enviado no se edita ni elimina; solo se agregan servicios nuevos
+    const existentes = await db
+      .select()
+      .from(consultas)
+      .where(and(eq(consultas.hospitalId, hospitalId), eq(consultas.semanaDesde, semanaDesde)));
+    const claveExistente = new Set(existentes.map((c) => `${c.especialidadId}|${c.tipo}`));
+    const nuevas = filas.filter((f) => !claveExistente.has(`${f.especialidadId}|${f.tipo}`));
+    if (nuevas.length > 0) {
+      await db.insert(consultas).values(
+        nuevas.map((f) => ({
+          hospitalId,
+          especialidadId: f.especialidadId,
+          tipo: f.tipo as "consultas" | "intervenciones" | "hospitalizaciones",
+          semanaDesde,
+          militar: f.m,
+          afiliado: f.a,
+          pna: f.p,
+        })),
+      );
+    }
+  } else {
+    // Semana nueva o devuelta para corrección: reemplaza todo por lo enviado
+    await db
+      .delete(consultas)
+      .where(and(eq(consultas.hospitalId, hospitalId), eq(consultas.semanaDesde, semanaDesde)));
+    if (filas.length > 0) {
+      await db.insert(consultas).values(
+        filas.map((f) => ({
+          hospitalId,
+          especialidadId: f.especialidadId,
+          tipo: f.tipo as "consultas" | "intervenciones" | "hospitalizaciones",
+          semanaDesde,
+          militar: f.m,
+          afiliado: f.a,
+          pna: f.p,
+        })),
+      );
+    }
   }
 
   await db
@@ -171,8 +189,12 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
   await sincronizarReporte(sesion.hospitalId, semanaDesde);
   revalidatePath("/consultas");
   if (totalServicios === 0)
-    return { ok: "Filas vaciadas. La semana quedó bloqueada." };
-  return { ok: `Cifras enviadas (${totalServicios} servicios). La semana quedó bloqueada; para corregir, solicita a la Sala Situacional.` };
+    return { ok: "Sin filas nuevas que guardar." };
+  return {
+    ok: soloAgregar
+      ? "Servicios agregados a la semana enviada. Lo ya enviado permanece sin cambios."
+      : `Cifras enviadas (${totalServicios} servicios). La semana quedó registrada; para editarla, solicita a la Sala Situacional.`,
+  };
 }
 
 // El admin reabre una carga para que el centro la corrija (estado: rechazado = abierta)

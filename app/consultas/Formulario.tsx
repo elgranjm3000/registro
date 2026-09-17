@@ -13,7 +13,7 @@ const TIPOS = [
 ] as const;
 type Tipo = (typeof TIPOS)[number]["valor"];
 
-type Fila = { clave: number; esp: number | ""; tipo: Tipo; m: string; a: string; p: string };
+type Fila = { clave: number; esp: number | ""; tipo: Tipo; m: string; a: string; p: string; guardada?: boolean };
 
 let seq = 1;
 const filaNueva = (tipo: Tipo): Fila => ({ clave: seq++, esp: "", tipo, m: "", a: "", p: "" });
@@ -47,6 +47,7 @@ export default function FormularioCifras({
             clave: seq++,
             esp: c.especialidadId,
             tipo: c.tipo,
+            guardada: true,
             m: c.militar ? String(c.militar) : "",
             a: c.afiliado ? String(c.afiliado) : "",
             p: c.pna ? String(c.pna) : "",
@@ -83,8 +84,10 @@ export default function FormularioCifras({
   const etiquetaTab = TIPOS.find((t) => t.valor === tab)?.etiqueta ?? "";
   // Bloqueo: enviada (pendiente) o confirmada (verificada) no se puede editar.
   // "rechazado" = devuelta por la Sala Situacional para corrección.
-  const bloqueado = !!rep && rep.estado !== "rechazado";
+  const enviado = !!rep && rep.estado !== "rechazado";
   const devuelta = rep?.estado === "rechazado";
+  // Enviada: se puede AGREGAR, pero las filas ya enviadas no se editan ni eliminan
+  const editable = (f: Fila) => devuelta || !enviado || !f.guardada;
 
   return (
     <div className="mt-6 space-y-6">
@@ -117,7 +120,7 @@ export default function FormularioCifras({
         </div>
         {bloqueado && (
           <p className="border-b border-bordesuave bg-[#fdf3e3] px-4 py-3 text-[13px] font-semibold text-[#9a6b16] sm:px-6">
-            🔒 Esta semana ya fue enviada y no se puede modificar. Solo la Sala Situacional puede reabrirla.
+            📌 Esta semana ya fue enviada: puedes agregar servicios nuevos, pero no editar ni eliminar lo ya enviado. Solo la Sala Situacional puede reabrirlo.
           </p>
         )}
         {devuelta && (
@@ -174,8 +177,7 @@ export default function FormularioCifras({
           <button
             type="button"
             onClick={() => setFilas((fs) => [...fs, filaNueva(tab)])}
-            disabled={bloqueado}
-            className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel disabled:opacity-50"
+            className="h-9 rounded-chico border border-borde px-4 text-[13px] font-semibold text-banda hover:bg-papel"
           >
             + Agregar en {etiquetaTab}
           </button>
@@ -224,7 +226,7 @@ export default function FormularioCifras({
                         name={`fila-${i}-esp`}
                         value={f.esp}
                         onChange={(ev) => editar(f.clave, { esp: Number(ev.target.value) })}
-                        disabled={bloqueado}
+                        disabled={!editable(f)}
                         className="w-56 disabled:opacity-60"
                         required
                       >
@@ -248,7 +250,7 @@ export default function FormularioCifras({
                           name={`fila-${i}-${c}`}
                           value={f[c]}
                           onChange={(ev) => editar(f.clave, { [c]: ev.target.value })}
-                          disabled={bloqueado}
+                          disabled={!editable(f)}
                           className="w-20 text-center disabled:opacity-60"
                         />
                       </td>
@@ -280,14 +282,12 @@ export default function FormularioCifras({
           {estado.error && (
             <p className="rounded-medio bg-fecha/10 px-4 py-2.5 text-[13px] font-semibold text-fecha">{estado.error}</p>
           )}
-          {!bloqueado && (
-            <button
-              disabled={pendiente}
-              className="ml-auto h-10 rounded-chico bg-banda px-5 font-semibold text-white hover:bg-[#153a6e] disabled:opacity-60"
-            >
-              {pendiente ? "Enviando…" : "Enviar carga"}
-            </button>
-          )}
+          <button
+            disabled={pendiente}
+            className="ml-auto h-10 rounded-chico bg-banda px-5 font-semibold text-white hover:bg-[#153a6e] disabled:opacity-60"
+          >
+            {pendiente ? "Enviando…" : enviado ? "Agregar y enviar" : "Enviar carga"}
+          </button>
         </div>
       </form>
 
