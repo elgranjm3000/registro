@@ -15,6 +15,20 @@ const lunes = () => {
   return d.toISOString().slice(0, 10);
 };
 
+// Acepta ISO con Z, ISO sin Z o "YYYY-MM-DD HH:MM:SS" (filas viejas de la bitácora)
+function fechaHora(f: string) {
+  const d = new Date(/[TZ]/.test(f) ? f : f.replace(" ", "T") + "Z");
+  if (isNaN(d.getTime())) return f;
+  return d.toLocaleString("es-VE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default async function Panel() {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
@@ -283,8 +297,8 @@ export default async function Panel() {
                         </span>
                       </td>
                       <td className="px-2 py-2.5 text-center text-tinta2">{b.ip || "—"}</td>
-                      <td className="px-5 py-2.5 text-right text-tinta2">
-                        {new Date(b.fecha + "Z").toLocaleString("es-VE")}
+                      <td className="px-5 py-2.5 text-right whitespace-nowrap text-tinta2">
+                        {fechaHora(b.fecha)}
                       </td>
                     </tr>
                   );
