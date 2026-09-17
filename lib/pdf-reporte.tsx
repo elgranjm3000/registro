@@ -175,7 +175,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           {d.hospitalFiltro === "todos" ? "Resumen por centro de salud" : d.nombreHospital}
         </Text>
         <View>
-          <View style={{ flexDirection: "row" }}>
+          <View style={{ flexDirection: "row" }} fixed wrap={false}>
             <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
             <Text style={[s.th, { flex: 1 }]}>CENTRO DE SALUD</Text>
             {porTipo ? (
@@ -249,7 +249,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           <Text style={s.vacio}>Sin detalle cargado para esta selección.</Text>
         ) : (
           <View>
-            <View style={{ flexDirection: "row" }}>
+            <View style={{ flexDirection: "row" }} fixed wrap={false}>
               <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
               {d.hospitalFiltro === "todos" && <Text style={[s.th, { flex: 1.2 }]}>CENTRO</Text>}
               <Text style={[s.th, { flex: 1 }]}>ESPECIALIDAD</Text>
