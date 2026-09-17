@@ -114,11 +114,11 @@ export default function FormularioCifras({
                 devuelta ? "bg-fecha/10 text-fecha" : "bg-verifica/10 text-verifica"
               }`}
             >
-              {devuelta ? "Devuelta para corrección" : bloqueado ? "Enviada · bloqueada" : "Guardado"}
+              {devuelta ? "Devuelta para corrección" : enviado ? "Enviada" : "Guardado"}
             </span>
           )}
         </div>
-        {bloqueado && (
+        {enviado && (
           <p className="border-b border-bordesuave bg-[#fdf3e3] px-4 py-3 text-[13px] font-semibold text-[#9a6b16] sm:px-6">
             📌 Esta semana ya fue enviada: puedes agregar servicios nuevos, pero no editar ni eliminar lo ya enviado. Solo la Sala Situacional puede reabrirlo.
           </p>
