@@ -79,7 +79,7 @@ export async function obtenerDatosReporte(opts: {
     hospitalFiltro === "todos" ? centros.filter((c) => c.activo) : filas.map((f) => f.h)
   ).map((h) => {
     const r = repPorHospital.get(h.id);
-    const sumaTipo = (tt: string) => num(r, tt, "Militar") + num(r, tt, "Afiliado") + num(r, tt, "PNA");
+    const sumaTipo = (tt: string) => num(r, tt, "Militar") + num(r, tt, "Afiliado") + num(r, tt, "Pna");
     return {
       id: h.id,
       nombre: h.nombre,
@@ -90,7 +90,7 @@ export async function obtenerDatosReporte(opts: {
       hospitalizaciones: tipo === "todos" ? sumaTipo("hospitalizaciones") : tipo === "hospitalizaciones" ? sumaTipo("hospitalizaciones") : 0,
       militar: tiposIncluidos.reduce((a, tt) => a + num(r, tt, "Militar"), 0),
       afiliado: tiposIncluidos.reduce((a, tt) => a + num(r, tt, "Afiliado"), 0),
-      pna: tiposIncluidos.reduce((a, tt) => a + num(r, tt, "PNA"), 0),
+      pna: tiposIncluidos.reduce((a, tt) => a + num(r, tt, "Pna"), 0),
     };
   });
 
