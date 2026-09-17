@@ -114,3 +114,11 @@ h3 {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Impresión del reporte: hoja horizontal, como el PDF oficial */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+}
