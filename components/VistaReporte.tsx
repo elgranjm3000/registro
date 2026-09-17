@@ -28,10 +28,7 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
             PARA LA DEFENSA
           </div>
           <div className="h-10 w-px bg-banda/40" />
-          <div className="flex flex-1 items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logos/digesalud.png" alt="Sello DIGESALUD" className="h-10 w-auto" />
-          </div>
+          <div className="flex-1" />
         </div>
 
         {/* Banda de título */}
