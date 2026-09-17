@@ -191,14 +191,13 @@ export default function FormularioCifras({
                 <th className="px-2 py-2 text-center font-semibold">Militar</th>
                 <th className="px-2 py-2 text-center font-semibold">Afiliado</th>
                 <th className="px-2 py-2 text-center font-semibold">PNA</th>
-                <th className="px-2 py-2 text-right font-semibold">Total</th>
-                <th className="rounded-r-chico px-4 py-2"></th>
+                <th className="rounded-r-chico px-4 py-2 text-right font-semibold">Total</th>
               </tr>
             </thead>
             <tbody>
               {filas.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-tinta3">
+                  <td colSpan={5} className="px-4 py-6 text-center text-tinta3">
                     Sin registros en {etiquetaTab} esta semana. Presiona “+ Agregar en {etiquetaTab}”.
                   </td>
                 </tr>
@@ -254,18 +253,7 @@ export default function FormularioCifras({
                         />
                       </td>
                     ))}
-                    <td className="px-2 py-1.5 text-right font-bold">{total(f)}</td>
-                    <td className="px-4 py-1.5 text-right">
-                      <button
-                        type="button"
-                        disabled={bloqueado}
-                        onClick={() => setFilas((fs) => fs.filter((x) => x.clave !== f.clave))}
-                        className="text-[12px] font-semibold text-fecha hover:underline"
-                        aria-label="Quitar fila"
-                      >
-                        Quitar
-                      </button>
-                    </td>
+                    <td className="rounded-r-chico px-4 py-1.5 text-right font-bold">{total(f)}</td>
                   </tr>
                 );
               })}
@@ -274,8 +262,7 @@ export default function FormularioCifras({
                   <td className="px-4 py-2 text-[12px] font-bold uppercase tracking-wider" colSpan={4}>
                     Total {etiquetaTab}
                   </td>
-                  <td className="px-2 py-2 text-right text-[16px] font-bold text-banda">{totalTab(tab)}</td>
-                  <td />
+                  <td className="rounded-r-chico px-2 py-2 text-right text-[16px] font-bold text-banda">{totalTab(tab)}</td>
                 </tr>
               )}
             </tbody>
