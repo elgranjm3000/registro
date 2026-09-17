@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { bitacora, consultas, especialidades, hospitales, reportes } from "@/lib/db/schema";
+import { bitacora, consultas, especialidades, hospitales, reportes, usuarios } from "@/lib/db/schema";
 import { crearSesion, cerrarSesion, getSesion, verificarClave } from "@/lib/auth";
 
 export type EstadoForm = { error?: string; ok?: string };
@@ -212,6 +212,23 @@ export async function accionAbrirReporte(fd: FormData) {
     })
     .where(eq(reportes.id, id));
   revalidatePath("/panel");
+}
+
+// Cambia la clave de acceso de un centro (solo admin)
+export async function accionCambiarClaveCentro(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin." };
+  const usuarioId = Number(fd.get("usuarioId"));
+  const clave = String(fd.get("clave") ?? "");
+  if (!usuarioId) return { error: "Centro inválido." };
+  if (clave.length < 6) return { error: "La clave debe tener al menos 6 caracteres." };
+  const bcrypt = (await import("bcryptjs")).default;
+  await db
+    .update(usuarios)
+    .set({ claveHash: bcrypt.hashSync(clave, 10) })
+    .where(and(eq(usuarios.id, usuarioId), eq(usuarios.rol, "centro")));
+  revalidatePath("/panel");
+  return { ok: "Clave actualizada." };
 }
 
 // ─── Especialidades (admin) ───

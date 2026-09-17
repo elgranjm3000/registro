@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { desc, eq, gte, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { bitacora, hospitales, reportes } from "@/lib/db/schema";
+import { bitacora, hospitales, reportes, usuarios } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
 import Encabezado from "@/components/Encabezado";
 import { accionAbrirReporte } from "@/lib/actions";
 import Graficos from "./Graficos";
 import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
+import CentrosAccesos from "./CentrosAccesos";
 
 const lunes = () => {
   const d = new Date();
@@ -37,6 +38,11 @@ export default async function Panel() {
     .select()
     .from(reportes)
     .where(and(gte(reportes.semanaDesde, ochoSemanas[7]), ne(reportes.estado, "rechazado")));
+
+  const usuariosCentro = await db
+    .select()
+    .from(usuarios)
+    .where(eq(usuarios.rol, "centro"));
 
   const ingresos = await db
     .select()
@@ -232,6 +238,8 @@ export default async function Panel() {
             </div>
           </section>
         )}
+
+        <CentrosAccesos centros={centros} usuarios={usuariosCentro} />
 
         {/* Bitácora de accesos */}
         <section className="mt-8">
