@@ -40,9 +40,9 @@ export type DatosReporte = {
 };
 
 const ETIQUETA_TIPO: Record<string, string> = {
-  consultas: "Consulta",
-  intervenciones: "Intervención",
-  hospitalizaciones: "Hospitalización",
+  consultas: "Consultas",
+  intervenciones: "Intervenciones Qx",
+  hospitalizaciones: "Hospitalizaciones",
 };
 
 // Datos consolidados del reporte semanal (usado por la vista de impresión y el PDF)

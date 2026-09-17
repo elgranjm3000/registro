@@ -142,7 +142,7 @@ export default async function Panel() {
                   <select name="tipo" defaultValue="todos" className="h-9">
                     <option value="todos">Todos</option>
                     <option value="consultas">Consultas</option>
-                    <option value="intervenciones">Intervenciones</option>
+                    <option value="intervenciones">Intervenciones Qx</option>
                     <option value="hospitalizaciones">Hospitalizaciones</option>
                   </select>
                 </div>

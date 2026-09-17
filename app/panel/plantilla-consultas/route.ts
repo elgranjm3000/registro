@@ -29,7 +29,7 @@ export async function GET() {
     {
       Centro: centros[0]?.nombre ?? "",
       Especialidad: "CARDIOLOGÍA",
-      Tipo: "Consulta",
+      Tipo: "Consultas",
       Militar: 12,
       Afiliado: 8,
       PNA: 25,
@@ -38,7 +38,7 @@ export async function GET() {
     {
       Centro: centros[0]?.nombre ?? "",
       Especialidad: "TRAUMATOLOGÍA",
-      Tipo: "Intervención",
+      Tipo: "Intervenciones Qx",
       Militar: 5,
       Afiliado: 3,
       PNA: 10,
@@ -47,7 +47,7 @@ export async function GET() {
     {
       Centro: centros[0]?.nombre ?? "",
       Especialidad: "ENDOCRINOLOGÍA",
-      Tipo: "Hospitalización",
+      Tipo: "Hospitalizaciones",
       Militar: 4,
       Afiliado: 6,
       PNA: 9,
@@ -63,7 +63,7 @@ export async function GET() {
     ...Array.from({ length: Math.max(centros.length, esp.length, 3) }, (_, i) => [
       centros[i]?.nombre ?? "",
       esp[i]?.nombre ?? "",
-      ["Consulta", "Intervención", "Hospitalización"][i] ?? "",
+      ["Consultas", "Intervenciones Qx", "Hospitalizaciones"][i] ?? "",
     ]),
   ]);
   listas["!cols"] = [{ wch: 52 }, { wch: 26 }, { wch: 16 }];

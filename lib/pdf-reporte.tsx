@@ -181,7 +181,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
             {porTipo ? (
               <>
                 <Text style={[s.th, { width: 70, textAlign: "right" }]}>CONSULTAS</Text>
-                <Text style={[s.th, { width: 80, textAlign: "right" }]}>INTERVENCIONES</Text>
+                <Text style={[s.th, { width: 100, textAlign: "right" }]}>INTERVENCIONES QX</Text>
                 <Text style={[s.th, { width: 90, textAlign: "right" }]}>HOSPITALIZACIONES</Text>
               </>
             ) : (
@@ -200,7 +200,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
               {porTipo ? (
                 <>
                   <Text style={[s.tdR, { width: 70 }]}>{String(f.consultas).padStart(2, "0")}</Text>
-                  <Text style={[s.tdR, { width: 80 }]}>{String(f.intervenciones).padStart(2, "0")}</Text>
+                  <Text style={[s.tdR, { width: 100 }]}>{String(f.intervenciones).padStart(2, "0")}</Text>
                   <Text style={[s.tdR, { width: 90 }]}>{String(f.hospitalizaciones).padStart(2, "0")}</Text>
                 </>
               ) : (
@@ -223,7 +223,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
                 <Text style={[s.tdR, { width: 70, fontWeight: 700 }]}>
                   {d.centros.reduce((a, f) => a + f.consultas, 0)}
                 </Text>
-                <Text style={[s.tdR, { width: 80, fontWeight: 700 }]}>
+                <Text style={[s.tdR, { width: 100, fontWeight: 700 }]}>
                   {d.centros.reduce((a, f) => a + f.intervenciones, 0)}
                 </Text>
                 <Text style={[s.tdR, { width: 90, fontWeight: 700 }]}>
@@ -253,7 +253,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
               <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
               {d.hospitalFiltro === "todos" && <Text style={[s.th, { flex: 1.2 }]}>CENTRO</Text>}
               <Text style={[s.th, { flex: 1 }]}>ESPECIALIDAD</Text>
-              {porTipo && <Text style={[s.th, { width: 75 }]}>SERVICIO</Text>}
+              {porTipo && <Text style={[s.th, { width: 85 }]}>SERVICIO</Text>}
               <Text style={[s.th, { width: 55, textAlign: "right" }]}>MILITAR</Text>
               <Text style={[s.th, { width: 55, textAlign: "right" }]}>AFILIADO</Text>
               <Text style={[s.th, { width: 45, textAlign: "right" }]}>PNA</Text>
@@ -264,7 +264,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
                 <Text style={[s.td, { width: 24, textAlign: "center" }]}>{i + 1}</Text>
                 {d.hospitalFiltro === "todos" && <Text style={[s.td, { flex: 1.2 }]}>{x.hospital}</Text>}
                 <Text style={[s.td, { flex: 1 }]}>{x.especialidad}</Text>
-                {porTipo && <Text style={[s.td, { width: 75 }]}>{x.tipo}</Text>}
+                {porTipo && <Text style={[s.td, { width: 85 }]}>{x.tipo}</Text>}
                 <Text style={[s.tdR, { width: 55 }]}>{String(x.Militar).padStart(2, "0")}</Text>
                 <Text style={[s.tdR, { width: 55 }]}>{String(x.Afiliado).padStart(2, "0")}</Text>
                 <Text style={[s.tdR, { width: 45 }]}>{String(x.PNA).padStart(2, "0")}</Text>

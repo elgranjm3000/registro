@@ -76,7 +76,7 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
               {porTipo ? (
                 <>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">CONSULTAS</th>
-                  <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">INTERVENCIONES</th>
+                  <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">INTERVENCIONES QX</th>
                   <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">HOSPITALIZACIONES</th>
                 </>
               ) : (

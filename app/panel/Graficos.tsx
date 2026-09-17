@@ -32,15 +32,15 @@ export default function Graficos({
 
   const tendencia = [...historicos]
     .sort((a, b) => a.semanaDesde.localeCompare(b.semanaDesde))
-    .reduce<{ semana: string; Consultas: number; Intervenciones: number; Hospitalizaciones: number }[]>(
+    .reduce<{ semana: string; Consultas: number; "Intervenciones Qx": number; Hospitalizaciones: number }[]>(
       (acc, r) => {
         let fila = acc.find((f) => f.semana === r.semanaDesde);
         if (!fila) {
-          fila = { semana: r.semanaDesde, Consultas: 0, Intervenciones: 0, Hospitalizaciones: 0 };
+          fila = { semana: r.semanaDesde, Consultas: 0, "Intervenciones Qx": 0, Hospitalizaciones: 0 };
           acc.push(fila);
         }
         fila.Consultas += sumar([r], "consultas", "Militar") + sumar([r], "consultas", "Afiliado") + sumar([r], "consultas", "Pna");
-        fila.Intervenciones += sumar([r], "intervenciones", "Militar") + sumar([r], "intervenciones", "Afiliado") + sumar([r], "intervenciones", "Pna");
+        fila["Intervenciones Qx"] += sumar([r], "intervenciones", "Militar") + sumar([r], "intervenciones", "Afiliado") + sumar([r], "intervenciones", "Pna");
         fila.Hospitalizaciones += sumar([r], "hospitalizaciones", "Militar") + sumar([r], "hospitalizaciones", "Afiliado") + sumar([r], "hospitalizaciones", "Pna");
         return acc;
       },
@@ -121,7 +121,7 @@ export default function Graficos({
                 <Tooltip cursor={{ fill: "rgba(22,35,59,.04)" }} />
                 <Legend iconType="square" iconSize={9} wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="Consultas" fill="#0e2a52" radius={[3, 3, 0, 0]} maxBarSize={26} />
-                <Bar dataKey="Intervenciones" fill="#4caf6d" radius={[3, 3, 0, 0]} maxBarSize={26} />
+                <Bar dataKey="Intervenciones Qx" fill="#4caf6d" radius={[3, 3, 0, 0]} maxBarSize={26} />
                 <Bar dataKey="Hospitalizaciones" fill="#2f9ec7" radius={[3, 3, 0, 0]} maxBarSize={26} />
               </BarChart>
             </ResponsiveContainer>

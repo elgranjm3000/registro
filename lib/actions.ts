@@ -300,6 +300,7 @@ async function importarConsultas(filas: Record<string, unknown>[], requiereCentr
     const TIPOS_XL: Record<string, string> = {
       consulta: "consultas", consultas: "consultas",
       intervencion: "intervenciones", intervenciones: "intervenciones",
+      "intervencionesqx": "intervenciones",
       hospitalizacion: "hospitalizaciones", hospitalizaciones: "hospitalizaciones",
     };
     const tipo = TIPOS_XL[normalizar(String(celda["tipo"] ?? "consulta"))] ?? "consultas";

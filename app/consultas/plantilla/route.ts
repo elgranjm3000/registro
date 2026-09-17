@@ -25,9 +25,9 @@ export async function GET() {
   const sem = lunes.toISOString().slice(0, 10);
 
   const hoja = XLSX.utils.json_to_sheet([
-    { Especialidad: esp[0]?.nombre ?? "CARDIOLOGÍA", Tipo: "Consulta", Militar: 12, Afiliado: 8, PNA: 25, Semana: sem },
-    { Especialidad: esp[1]?.nombre ?? "TRAUMATOLOGÍA", Tipo: "Intervención", Militar: 5, Afiliado: 3, PNA: 10, Semana: sem },
-    { Especialidad: esp[3]?.nombre ?? "ENDOCRINOLOGÍA", Tipo: "Hospitalización", Militar: 4, Afiliado: 6, PNA: 9, Semana: sem },
+    { Especialidad: esp[0]?.nombre ?? "CARDIOLOGÍA", Tipo: "Consultas", Militar: 12, Afiliado: 8, PNA: 25, Semana: sem },
+    { Especialidad: esp[1]?.nombre ?? "TRAUMATOLOGÍA", Tipo: "Intervenciones Qx", Militar: 5, Afiliado: 3, PNA: 10, Semana: sem },
+    { Especialidad: esp[3]?.nombre ?? "ENDOCRINOLOGÍA", Tipo: "Hospitalizaciones", Militar: 4, Afiliado: 6, PNA: 9, Semana: sem },
   ]);
   hoja["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 12 }];
 
@@ -36,7 +36,7 @@ export async function GET() {
     ["Especialidades", "Tipo"],
     ...Array.from({ length: Math.max(esp.length, 3) }, (_, i) => [
       esp[i]?.nombre ?? "",
-      ["Consulta", "Intervención", "Hospitalización"][i] ?? "",
+      ["Consultas", "Intervenciones Qx", "Hospitalizaciones"][i] ?? "",
     ]),
   ]);
   listas["!cols"] = [{ wch: 28 }, { wch: 16 }];

@@ -6,7 +6,7 @@ import { lunesActual, viernesDe } from "@/lib/fechas";
 
 const FILAS = [
   { key: "consultas", etiqueta: "Consultas" },
-  { key: "intervenciones", etiqueta: "Intervenciones" },
+  { key: "intervenciones", etiqueta: "Intervenciones Qx" },
   { key: "hospitalizaciones", etiqueta: "Hospitalizaciones" },
 ] as const;
 const CATS = ["Militar", "Afiliado", "Pna"] as const;
