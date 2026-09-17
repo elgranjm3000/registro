@@ -173,73 +173,89 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
           </tbody>
         </table>
 
-        {/* Detalle por especialidad */}
-        <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-tinta">
-          Detalle por especialidad{porTipo ? " (todos los servicios)" : ` (${d.tituloTipo.toLowerCase()})`}
-        </h3>
-        <table className="mt-2 w-full border-collapse text-[11px]">
-          <thead>
-            <tr>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
-              {d.hospitalFiltro === "todos" && (
-                <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">CENTRO</th>
-              )}
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">ESPECIALIDAD</th>
-              {porTipo && <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">SERVICIO</th>}
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">MILITAR</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">AFILIADO</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">PNA</th>
-              <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">TOTAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {d.detalle.length === 0 && (
-              <tr>
-                <td colSpan={7} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
-                  Sin detalle cargado para esta selección.
-                </td>
-              </tr>
-            )}
-            {d.detalle.map((x, i) => (
-              <tr key={i}>
-                <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
-                {d.hospitalFiltro === "todos" && (
-                  <td className="border border-tinta/60 px-2 py-1">{x.hospital}</td>
-                )}
-                <td className="border border-tinta/60 px-2 py-1">{x.especialidad}</td>
-                {porTipo && <td className="border border-tinta/60 px-2 py-1">{x.tipo}</td>}
-                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.Militar)}</td>
-                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.Afiliado)}</td>
-                <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.PNA)}</td>
-                <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">
-                  {fmt(x.Militar + x.Afiliado + x.PNA)}
-                </td>
-              </tr>
-            ))}
-            <tr className="bg-[#dce7f5] font-bold">
-              <td
-                className="border border-tinta/60 px-2 py-1.5 text-center"
-                colSpan={2 + (d.hospitalFiltro === "todos" ? 1 : 0) + (porTipo ? 1 : 0)}
-              >
-                TOTAL
-              </td>
-              <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                {d.detalle.reduce((a, x) => a + x.Militar, 0)}
-              </td>
-              <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                {d.detalle.reduce((a, x) => a + x.Afiliado, 0)}
-              </td>
-              <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                {d.detalle.reduce((a, x) => a + x.PNA, 0)}
-              </td>
-              <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
-                {d.detalle.reduce((a, x) => a + x.Militar + x.Afiliado + x.PNA, 0)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {/* Detalle por especialidad: una tabla por actividad */}
+        {porTipo ? (
+          ACTIVIDADES.map(([clave, titulo]) => (
+            <div key={clave}>
+              <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-fecha">{titulo}</h3>
+              <TablaDetalle filas={d.detalle.filter((x) => x.tipo === titulo)} conCentro={d.hospitalFiltro === "todos"} />
+            </div>
+          ))
+        ) : (
+          <>
+            <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-tinta">
+              Detalle por especialidad ({d.tituloTipo.toLowerCase()})
+            </h3>
+            <TablaDetalle filas={d.detalle} conCentro={d.hospitalFiltro === "todos"} />
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+const ACTIVIDADES = [
+  ["Consultas", "Consultas"],
+  ["intervenciones", "Intervenciones Qx"],
+  ["hospitalizaciones", "Hospitalizaciones"],
+] as const;
+
+type FilaDetalle = DatosReporte["detalle"][number];
+
+function TablaDetalle({ filas, conCentro }: { filas: FilaDetalle[]; conCentro: boolean }) {
+  return (
+    <table className="mt-2 w-full border-collapse text-[11px]">
+      <thead>
+        <tr>
+          <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">Nº</th>
+          {conCentro && <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">CENTRO</th>}
+          <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-left">ESPECIALIDAD</th>
+          <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">MILITAR</th>
+          <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">AFILIADO</th>
+          <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">PNA</th>
+          <th className="border border-tinta/60 bg-[#dce7f5] px-2 py-1.5 text-right">TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {filas.length === 0 && (
+          <tr>
+            <td colSpan={conCentro ? 7 : 6} className="border border-tinta/60 px-2 py-3 text-center text-tinta3">
+              Sin detalle cargado para esta actividad.
+            </td>
+          </tr>
+        )}
+        {filas.map((x, i) => (
+          <tr key={i}>
+            <td className="border border-tinta/60 px-2 py-1 text-center">{i + 1}</td>
+            {conCentro && <td className="border border-tinta/60 px-2 py-1">{x.hospital}</td>}
+            <td className="border border-tinta/60 px-2 py-1">{x.especialidad}</td>
+            <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.Militar)}</td>
+            <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.Afiliado)}</td>
+            <td className="border border-tinta/60 px-2 py-1 text-right tabular-nums">{fmt(x.PNA)}</td>
+            <td className="border border-tinta/60 px-2 py-1 text-right font-bold tabular-nums">
+              {fmt(x.Militar + x.Afiliado + x.PNA)}
+            </td>
+          </tr>
+        ))}
+        <tr className="bg-[#dce7f5] font-bold">
+          <td className="border border-tinta/60 px-2 py-1.5 text-center" colSpan={2 + (conCentro ? 1 : 0)}>
+            TOTAL
+          </td>
+          <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+            {fmt(filas.reduce((a, x) => a + x.Militar, 0))}
+          </td>
+          <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+            {fmt(filas.reduce((a, x) => a + x.Afiliado, 0))}
+          </td>
+          <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+            {fmt(filas.reduce((a, x) => a + x.PNA, 0))}
+          </td>
+          <td className="border border-tinta/60 px-2 py-1.5 text-right tabular-nums">
+            {fmt(filas.reduce((a, x) => a + x.Militar + x.Afiliado + x.PNA, 0))}
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 

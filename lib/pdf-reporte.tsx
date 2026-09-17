@@ -16,6 +16,12 @@ const ROJO = "#c0392b";
 const COL = { Militar: "#4caf6d", Afiliado: "#2f9ec7", PNA: "#d64541" };
 const GRIS = "#8593a8";
 
+const ACTIVIDADES_PDF = [
+  ["Consultas", "Consultas"],
+  ["intervenciones", "Intervenciones Qx"],
+  ["hospitalizaciones", "Hospitalizaciones"],
+] as const;
+
 const cacheLogos = new Map<string, string>();
 function logo(nombre: string): string {
   if (!cacheLogos.has(nombre)) {
@@ -270,62 +276,20 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           </View>
         </View>
 
-        {/* Detalle por especialidad */}
-        <Text style={s.h3}>
-          Detalle por especialidad{porTipo ? " (todos los servicios)" : ` (${d.tituloTipo.toLowerCase()})`}
-        </Text>
-        {d.detalle.length === 0 ? (
-          <Text style={s.vacio}>Sin detalle cargado para esta selección.</Text>
-        ) : (
-          <View>
-            <View style={{ flexDirection: "row" }} fixed wrap={false}>
-              <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
-              {d.hospitalFiltro === "todos" && <Text style={[s.th, { flex: 1.2 }]}>CENTRO</Text>}
-              <Text style={[s.th, { flex: 1 }]}>ESPECIALIDAD</Text>
-              {porTipo && <Text style={[s.th, { width: 85 }]}>SERVICIO</Text>}
-              <Text style={[s.th, { width: 55, textAlign: "right" }]}>MILITAR</Text>
-              <Text style={[s.th, { width: 55, textAlign: "right" }]}>AFILIADO</Text>
-              <Text style={[s.th, { width: 45, textAlign: "right" }]}>PNA</Text>
-              <Text style={[s.th, { width: 50, textAlign: "right" }]}>TOTAL</Text>
-            </View>
-            {d.detalle.map((x, i) => (
-              <View key={i} style={{ flexDirection: "row" }}>
-                <Text style={[s.td, { width: 24, textAlign: "center" }]}>{i + 1}</Text>
-                {d.hospitalFiltro === "todos" && <Text style={[s.td, { flex: 1.2 }]}>{x.hospital}</Text>}
-                <Text style={[s.td, { flex: 1 }]}>{x.especialidad}</Text>
-                {porTipo && <Text style={[s.td, { width: 85 }]}>{x.tipo}</Text>}
-                <Text style={[s.tdR, { width: 55 }]}>{fmt(x.Militar)}</Text>
-                <Text style={[s.tdR, { width: 55 }]}>{fmt(x.Afiliado)}</Text>
-                <Text style={[s.tdR, { width: 45 }]}>{fmt(x.PNA)}</Text>
-                <Text style={[s.tdR, { width: 50, fontWeight: 700 }]}>
-                  {fmt(x.Militar + x.Afiliado + x.PNA)}
-                </Text>
+        {/* Detalle por especialidad: una tabla por actividad */}
+        {porTipo
+          ? ACTIVIDADES_PDF.map(([clave, titulo]) => (
+              <View key={clave}>
+                <Text style={[s.h3, { color: ROJO }]}>{titulo}</Text>
+                <TablaDetallePdf filas={d.detalle.filter((x) => x.tipo === titulo)} conCentro={d.hospitalFiltro === "todos"} />
               </View>
-            ))}
-            <View style={[{ flexDirection: "row" }, s.filaTotal]}>
-              <Text style={[s.td, { width: 24, textAlign: "center" }]} />
-              <Text
-                style={[s.td, { flex: 1, fontWeight: 700 }]}
-              >
-                TOTAL
-              </Text>
-              {d.hospitalFiltro === "todos" && <Text style={[s.td, { flex: 1.2 }]} />}
-              {porTipo && <Text style={[s.td, { width: 75 }]} />}
-              <Text style={[s.tdR, { width: 55, fontWeight: 700 }]}>
-                {d.detalle.reduce((a, x) => a + x.Militar, 0)}
-              </Text>
-              <Text style={[s.tdR, { width: 55, fontWeight: 700 }]}>
-                {d.detalle.reduce((a, x) => a + x.Afiliado, 0)}
-              </Text>
-              <Text style={[s.tdR, { width: 45, fontWeight: 700 }]}>
-                {d.detalle.reduce((a, x) => a + x.PNA, 0)}
-              </Text>
-              <Text style={[s.tdR, { width: 50, fontWeight: 700 }]}>
-                {d.detalle.reduce((a, x) => a + x.Militar + x.Afiliado + x.PNA, 0)}
-              </Text>
+            ))
+          : (
+            <View>
+              <Text style={s.h3}>Detalle por especialidad ({d.tituloTipo.toLowerCase()})</Text>
+              <TablaDetallePdf filas={d.detalle} conCentro={d.hospitalFiltro === "todos"} />
             </View>
-          </View>
-        )}
+          )}
         <Text
           fixed
           style={{ position: "absolute", bottom: 14, left: 28, right: 28, fontSize: 7, color: GRIS, textAlign: "center" }}
@@ -337,3 +301,58 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
     </Document>
   );
 }
+
+function TablaDetallePdf({
+  filas,
+  conCentro,
+}: {
+  filas: DatosReporte["detalle"];
+  conCentro: boolean;
+}) {
+  if (filas.length === 0)
+    return <Text style={s.vacio}>Sin detalle cargado para esta actividad.</Text>;
+  return (
+    <View>
+      <View style={{ flexDirection: "row" }} fixed wrap={false}>
+        <Text style={[s.th, { width: 24, textAlign: "center" }]}>Nº</Text>
+        {conCentro && <Text style={[s.th, { flex: 1.2 }]}>CENTRO</Text>}
+        <Text style={[s.th, { flex: 1 }]}>ESPECIALIDAD</Text>
+        <Text style={[s.th, { width: 55, textAlign: "right" }]}>MILITAR</Text>
+        <Text style={[s.th, { width: 55, textAlign: "right" }]}>AFILIADO</Text>
+        <Text style={[s.th, { width: 45, textAlign: "right" }]}>PNA</Text>
+        <Text style={[s.th, { width: 50, textAlign: "right" }]}>TOTAL</Text>
+      </View>
+      {filas.map((x, i) => (
+        <View key={i} style={{ flexDirection: "row" }}>
+          <Text style={[s.td, { width: 24, textAlign: "center" }]}>{i + 1}</Text>
+          {conCentro && <Text style={[s.td, { flex: 1.2 }]}>{x.hospital}</Text>}
+          <Text style={[s.td, { flex: 1 }]}>{x.especialidad}</Text>
+          <Text style={[s.tdR, { width: 55 }]}>{fmt(x.Militar)}</Text>
+          <Text style={[s.tdR, { width: 55 }]}>{fmt(x.Afiliado)}</Text>
+          <Text style={[s.tdR, { width: 45 }]}>{fmt(x.PNA)}</Text>
+          <Text style={[s.tdR, { width: 50, fontWeight: 700 }]}>
+            {fmt(x.Militar + x.Afiliado + x.PNA)}
+          </Text>
+        </View>
+      ))}
+      <View style={[{ flexDirection: "row" }, s.filaTotal]}>
+        <Text style={[s.td, { width: 24, textAlign: "center" }]} />
+        <Text style={[s.td, { flex: 1, fontWeight: 700 }]}>TOTAL</Text>
+        {conCentro && <Text style={[s.td, { flex: 1.2 }]} />}
+        <Text style={[s.tdR, { width: 55, fontWeight: 700 }]}>
+          {fmt(filas.reduce((a, x) => a + x.Militar, 0))}
+        </Text>
+        <Text style={[s.tdR, { width: 55, fontWeight: 700 }]}>
+          {fmt(filas.reduce((a, x) => a + x.Afiliado, 0))}
+        </Text>
+        <Text style={[s.tdR, { width: 45, fontWeight: 700 }]}>
+          {fmt(filas.reduce((a, x) => a + x.PNA, 0))}
+        </Text>
+        <Text style={[s.tdR, { width: 50, fontWeight: 700 }]}>
+          {fmt(filas.reduce((a, x) => a + x.Militar + x.Afiliado + x.PNA, 0))}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
