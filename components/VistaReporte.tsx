@@ -1,11 +1,11 @@
 import type { DatosReporte } from "@/lib/reporte-datos";
+import { formatoMilitar } from "@/lib/fechas";
 
 const COL = { Militar: "#4caf6d", Afiliado: "#2f9ec7", PNA: "#d64541" };
 
 // Vista del reporte con formato oficial (usada por el admin y por cada centro).
 // No incluye controles de navegación: esos los pone cada página.
 export default function VistaReporte({ d }: { d: DatosReporte }) {
-  const fmt = (iso: string) => `${iso.slice(8)}${iso.slice(5, 7).replace(/^0/, "")}`;
   const porTipo = d.tipo === "todos";
 
   return (
@@ -35,7 +35,7 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
             Distribución de {d.tituloTipo} en la Red de Salud Militar
           </div>
           <div className="mt-0.5 text-[13px] font-bold uppercase tracking-wide text-fecha">
-            Desde el {fmt(d.semana)} hasta el {fmt(d.semanaHasta)}
+            Desde el {formatoMilitar(d.semana)} hasta el {formatoMilitar(d.semanaHasta)}
           </div>
         </div>
 

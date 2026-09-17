@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Svg, Path } from "@react-pdf/renderer";
 import type { DatosReporte } from "./reporte-datos";
+import { formatoMilitar } from "./fechas";
 
 const AZUL = "#0e2a52";
 const ROJO = "#c0392b";
@@ -116,7 +117,6 @@ function Dona({ cat, total }: { cat: DatosReporte["cat"]; total: number }) {
 }
 
 export function DocumentoReporte({ d }: { d: DatosReporte }) {
-  const fmt = (iso: string) => `${iso.slice(8)}${iso.slice(5, 7).replace(/^0/, "")}`;
   const porTipo = d.tipo === "todos";
   const colsDetalle = 3 + (d.hospitalFiltro === "todos" ? 1 : 0) + (porTipo ? 1 : 0);
 
@@ -144,7 +144,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         <View style={s.banda}>
           <Text style={s.bandaTitulo}>Distribución de {d.tituloTipo} en la Red de Salud Militar</Text>
           <Text style={s.bandaFechas}>
-            Desde el {fmt(d.semana)} hasta el {fmt(d.semanaHasta)}
+            Desde el {formatoMilitar(d.semana)} hasta el {formatoMilitar(d.semanaHasta)}
           </Text>
         </View>
 
@@ -301,7 +301,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           fixed
           style={{ position: "absolute", bottom: 14, left: 28, right: 28, fontSize: 7, color: GRIS, textAlign: "center" }}
           render={({ pageNumber, totalPages }) =>
-            `Sala Situacional / DIGESALUD · Semana ${d.semana.split("-").reverse().join("")} · Página ${pageNumber} de ${totalPages}`
+            `Sala Situacional / DIGESALUD · Semana ${formatoMilitar(d.semana)} · Página ${pageNumber} de ${totalPages}`
           }
         />
       </Page>
