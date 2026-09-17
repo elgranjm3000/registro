@@ -27,7 +27,6 @@ export default function FormularioReporte({ historial }: { historial: Reporte[] 
   const valor = (f: string, c: string) =>
     existente ? (existente[campo(f, c) as keyof Reporte] as number) : 0;
   const total = (f: string) => CATS.reduce((a, c) => a + valor(f, c), 0);
-  const totalGeneral = FILAS.reduce((a, f) => a + total(f.key), 0);
 
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -67,27 +66,25 @@ export default function FormularioReporte({ historial }: { historial: Reporte[] 
                 <th className="px-3 py-2.5 text-center font-semibold">Militar</th>
                 <th className="px-3 py-2.5 text-center font-semibold">Afiliado</th>
                 <th className="px-3 py-2.5 text-center font-semibold">PNA</th>
-                <th className="px-6 py-2.5 text-right font-semibold">Total</th>
+                <th className="px-6 py-2.5 text-right font-semibold">Total por actividad</th>
               </tr>
             </thead>
             <tbody>
               {FILAS.map((f) => (
                 <tr key={f.key} className="border-b border-bordesuave">
-                  <td className="px-6 py-2.5 font-semibold">{f.etiqueta}</td>
+                  <td className="px-6 py-3 font-semibold">{f.etiqueta}</td>
                   {CATS.map((c) => (
-                    <td key={c} className="px-3 py-2.5 text-center text-[15px] font-semibold">
+                    <td key={c} className="px-3 py-3 text-center text-[14px] font-medium text-tinta2">
                       {valor(f.key, c)}
                     </td>
                   ))}
-                  <td className="px-6 py-2.5 text-right text-[15px] font-bold">{total(f.key)}</td>
+                  <td className="px-6 py-3 text-right">
+                    <span className="inline-block min-w-20 rounded-chico bg-[#dce7f5] px-3 py-1 text-[20px] font-bold tabular-nums text-banda">
+                      {total(f.key)}
+                    </span>
+                  </td>
                 </tr>
               ))}
-              <tr className="bg-[#e8eef7]">
-                <td className="px-6 py-3 font-bold uppercase text-[12px] tracking-wider" colSpan={4}>
-                  Total general
-                </td>
-                <td className="px-6 py-3 text-right text-[18px] font-bold text-banda">{totalGeneral}</td>
-              </tr>
             </tbody>
           </table>
         </div>
