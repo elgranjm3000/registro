@@ -134,19 +134,13 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
     >
       <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.membrete}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "33%" }}>
-            <Image src={logo("bandera")} style={{ height: 32, width: 55, objectFit: "contain" }} />
-            <Text style={[s.membreteTxt, { textAlign: "left" }]}>REPÚBLICA BOLIVARIANA{"\n"}DE VENEZUELA</Text>
-          </View>
+          <Text style={[s.membreteTxt, { fontSize: 11 }]}>REPÚBLICA BOLIVARIANA{"\n"}DE VENEZUELA</Text>
           <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "30%" }}>
-            <Image src={logo("escudo")} style={{ height: 30, width: 38, objectFit: "contain" }} />
-            <Text style={s.membreteTxt}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
-          </View>
+          <Text style={[s.membreteTxt, { fontSize: 11 }]}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
           <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, width: "33%" }}>
             <Image src={logo("digesalud")} style={{ height: 32, width: 40, objectFit: "contain" }} />
-            <Text style={[s.membreteTxt, { fontSize: 12, textAlign: "left" }]}>DIGESALUD</Text>
+            <Text style={[s.membreteTxt, { fontSize: 13 }]}>DIGESALUD</Text>
           </View>
         </View>
         <Text style={s.fuente}>{d.nombreHospital}</Text>
