@@ -83,7 +83,7 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
         )}
 
         {/* Firma del Director en la primera hoja, junto a las gráficas */}
-        <div className="mt-8 flex justify-center">
+        <div className="mt-14 flex justify-center">
           <div className="w-72 text-center">
             <div className="border-t border-tinta/70" />
             <div className="mt-1 text-[12px] font-bold text-tinta">

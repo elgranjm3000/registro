@@ -50,7 +50,7 @@ const s = StyleSheet.create({
   th: { backgroundColor: "#dce7f5", fontWeight: 700, padding: 4, borderWidth: 1, borderColor: "#44536b", fontSize: 8 },
   bandaTabla: { backgroundColor: AZUL, color: "#ffffff", fontWeight: 700, fontSize: 9, textTransform: "uppercase", textAlign: "center", paddingVertical: 4, borderWidth: 1, borderColor: "#44536b", letterSpacing: 1 },
   filaZebra: { backgroundColor: "#f2f6fb" },
-  firmaBloque: { marginTop: 24, flexDirection: "row", justifyContent: "center" },
+  firmaBloque: { marginTop: 46, flexDirection: "row", justifyContent: "center" },
   firmaCaja: { width: 280, alignItems: "center" },
   firmaLinea: { width: "100%", height: 1, backgroundColor: "#16233b" },
   firmaNombre: { fontSize: 9, fontWeight: 700, marginTop: 5, textAlign: "center" },
