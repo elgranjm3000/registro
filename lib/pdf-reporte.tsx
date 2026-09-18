@@ -32,7 +32,7 @@ function logo(nombre: string): string {
 }
 
 const s = StyleSheet.create({
-  page: { paddingHorizontal: 28, paddingTop: 78, paddingBottom: 30, fontSize: 9, fontFamily: "Helvetica", color: "#16233b" },
+  page: { paddingHorizontal: 28, paddingTop: 132, paddingBottom: 30, fontSize: 9, fontFamily: "Helvetica", color: "#16233b" },
   membrete: { flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 2, borderBottomColor: AZUL, paddingBottom: 6 },
   membreteTxt: { textAlign: "center", fontSize: 9, fontWeight: 700, color: AZUL, width: "33%" },
   fuente: { marginTop: 4, fontSize: 7, color: GRIS },
@@ -138,12 +138,12 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
       author="Sala Situacional DIGESALUD"
     >
       <Page size="A4" orientation="landscape" style={s.page}>
-        {/* Membrete fijo: se repite en todas las hojas */}
-        <View style={[s.membrete, { position: "absolute", top: 20, left: 28, right: 28 }]} fixed>
-          <Text style={[s.membreteTxt, { fontSize: 11 }]}>REPÚBLICA BOLIVARIANA{"\n"}DE VENEZUELA</Text>
-          <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
-          <Text style={[s.membreteTxt, { fontSize: 11 }]}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
-        </View>
+        {/* Cintillo oficial: imagen a todo el ancho, repetida en todas las hojas */}
+        <Image
+          src={logo("cintillo")}
+          style={{ position: "absolute", top: 16, left: 28, right: 28, height: 92, objectFit: "contain" }}
+          fixed
+        />
 
         <View style={s.banda}>
           <Text style={s.bandaTitulo}>
