@@ -15,13 +15,13 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
     <div className="bg-white print:bg-white">
       <div className="mx-auto max-w-4xl px-6 py-6">
         {/* Cintillo oficial */}
-        <div className="border-b-2 border-banda pb-2">
+        <div className="border-b-2 border-banda pb-2 print:pb-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/cintillo.png" alt="Cintillo oficial DIGESALUD" className="w-full" />
         </div>
 
         {/* Banda de título */}
-        <div className="mt-4 bg-[#dce7f5] px-4 py-3 text-center">
+        <div className="mt-4 print:mt-2 bg-[#dce7f5] px-4 py-3 print:py-2 text-center">
           <div className="text-[15px] font-bold uppercase tracking-wide text-tinta">
             {d.hospitalFiltro === "todos"
               ? "Distribución de actividades en la Red de Salud Militar"
@@ -34,7 +34,7 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
 
         {/* Torta por actividad cuando el reporte abarca los tres servicios */}
         {porTipo ? (
-          <div className="mt-6 grid gap-5 sm:grid-cols-3">
+          <div className="mt-6 print:mt-3 grid gap-5 print:gap-2 sm:grid-cols-3">
             {(
               [
                 ["consultas", "Consultas"],
@@ -72,7 +72,7 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
         )}
 
         {/* Firma del Director en la primera hoja, junto a las gráficas */}
-        <div className="mt-14 flex justify-center">
+        <div className="mt-14 print:mt-6 flex justify-center">
           <div className="w-72 text-center">
             <div className="border-t border-tinta/70" />
             <div className="mt-1 text-[12px] font-bold text-tinta">
@@ -273,7 +273,7 @@ function Dona({
   });
 
   return (
-    <svg viewBox="0 0 200 200" className="mx-auto h-52 w-52">
+    <svg viewBox="0 0 200 200" className="mx-auto h-52 w-52 print:h-40 print:w-40">
       <circle cx="100" cy="100" r={R} fill="none" stroke="#eef1f5" strokeWidth="34" />
       {total > 0 &&
         segmentos
