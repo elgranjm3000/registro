@@ -32,11 +32,11 @@ function logo(nombre: string): string {
 }
 
 const s = StyleSheet.create({
-  page: { paddingHorizontal: 28, paddingVertical: 24, fontSize: 9, fontFamily: "Helvetica", color: "#16233b" },
+  page: { paddingHorizontal: 28, paddingTop: 78, paddingBottom: 30, fontSize: 9, fontFamily: "Helvetica", color: "#16233b" },
   membrete: { flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 2, borderBottomColor: AZUL, paddingBottom: 6 },
   membreteTxt: { textAlign: "center", fontSize: 9, fontWeight: 700, color: AZUL, width: "33%" },
   fuente: { marginTop: 4, fontSize: 7, color: GRIS },
-  banda: { marginTop: 10, backgroundColor: "#dce7f5", paddingVertical: 8, textAlign: "center" },
+  banda: { marginTop: 6, backgroundColor: "#dce7f5", paddingVertical: 8, textAlign: "center" },
   bandaTitulo: { fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 },
   bandaFechas: { fontSize: 10, fontWeight: 700, color: ROJO, marginTop: 2 },
   panel: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 14, borderWidth: 1, borderColor: "rgba(14,42,82,.4)", padding: 14, gap: 30 },
@@ -50,6 +50,11 @@ const s = StyleSheet.create({
   th: { backgroundColor: "#dce7f5", fontWeight: 700, padding: 4, borderWidth: 1, borderColor: "#44536b", fontSize: 8 },
   bandaTabla: { backgroundColor: AZUL, color: "#ffffff", fontWeight: 700, fontSize: 9, textTransform: "uppercase", textAlign: "center", paddingVertical: 4, borderWidth: 1, borderColor: "#44536b", letterSpacing: 1 },
   filaZebra: { backgroundColor: "#f2f6fb" },
+  firmaBloque: { marginTop: 24, flexDirection: "row", justifyContent: "flex-end", paddingRight: 36 },
+  firmaCaja: { width: 280, alignItems: "center" },
+  firmaLinea: { width: "100%", height: 1, backgroundColor: "#16233b" },
+  firmaNombre: { fontSize: 9, fontWeight: 700, marginTop: 5, textAlign: "center" },
+  firmaPie: { fontSize: 7.5, color: GRIS, marginTop: 2 },
   td: { padding: 3.5, borderWidth: 1, borderColor: "#44536b", fontSize: 8 },
   tdR: { padding: 3.5, borderWidth: 1, borderColor: "#44536b", fontSize: 8, textAlign: "right" },
   filaTotal: { backgroundColor: "#dce7f5", fontWeight: 700 },
@@ -133,12 +138,12 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
       author="Sala Situacional DIGESALUD"
     >
       <Page size="A4" orientation="landscape" style={s.page}>
-        <View style={s.membrete}>
+        {/* Membrete fijo: se repite en todas las hojas */}
+        <View style={[s.membrete, { position: "absolute", top: 20, left: 28, right: 28 }]} fixed>
           <Text style={[s.membreteTxt, { fontSize: 11 }]}>REPÚBLICA BOLIVARIANA{"\n"}DE VENEZUELA</Text>
           <View style={{ width: 1, alignSelf: "stretch", backgroundColor: "rgba(14,42,82,.35)" }} />
           <Text style={[s.membreteTxt, { fontSize: 11 }]}>MINISTERIO DEL PODER POPULAR{"\n"}PARA LA DEFENSA</Text>
         </View>
-        <Text style={s.fuente}>{d.nombreHospital}</Text>
 
         <View style={s.banda}>
           <Text style={s.bandaTitulo}>
@@ -200,8 +205,21 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           )}
         </View>
 
-        {/* Resumen por centro */}
-        <View>
+        {/* Firma del Director en la primera hoja, junto a las gráficas */}
+        <View style={s.firmaBloque} wrap={false}>
+          <View style={s.firmaCaja}>
+            <View style={s.firmaLinea} />
+            <Text style={s.firmaNombre}>
+              {d.hospitalFiltro === "todos"
+                ? "Jefe de la Sala Situacional / DIGESALUD"
+                : `Director del ${d.nombreHospital}`}
+            </Text>
+            <Text style={s.firmaPie}>Firma y sello</Text>
+          </View>
+        </View>
+
+        {/* Resumen por centro: comienza en hoja nueva */}
+        <View break>
           {/* Banda de título + encabezados: se repiten en cada salto de página */}
           <View fixed wrap={false}>
             <Text style={s.bandaTabla}>

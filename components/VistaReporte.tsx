@@ -82,8 +82,21 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
           </div>
         )}
 
-        {/* Resumen por centro */}
-        <h3 className="mt-8 text-[13px] font-bold uppercase tracking-wide text-tinta">
+        {/* Firma del Director en la primera hoja, junto a las gráficas */}
+        <div className="mt-8 flex justify-end pr-6 print:pr-10">
+          <div className="w-72 text-center">
+            <div className="border-t border-tinta/70" />
+            <div className="mt-1 text-[12px] font-bold text-tinta">
+              {d.hospitalFiltro === "todos"
+                ? "Jefe de la Sala Situacional / DIGESALUD"
+                : `Director del ${d.nombreHospital}`}
+            </div>
+            <div className="text-[10px] text-tinta3">Firma y sello</div>
+          </div>
+        </div>
+
+        {/* Resumen por centro: comienza en hoja nueva al imprimir */}
+        <h3 className="mt-8 break-before-page text-[13px] font-bold uppercase tracking-wide text-tinta">
           {d.hospitalFiltro === "todos" ? "Resumen por centro de salud" : d.nombreHospital}
         </h3>
         <table className="mt-2 w-full border-collapse text-[11px]">
