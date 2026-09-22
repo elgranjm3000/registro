@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { desc, eq, gte, and, ne } from "drizzle-orm";
+import { desc, eq, gte, lte, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bitacora, hospitales, reportes, usuarios } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
@@ -29,17 +29,27 @@ function fechaHora(f: string) {
   });
 }
 
-export default async function Panel() {
+export default async function Panel({
+  searchParams,
+}: {
+  searchParams: Promise<{ semana?: string; mes?: string }>;
+}) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
   if (sesion.rol !== "admin") redirect("/reportar");
 
-  const semana = lunes();
+  const sp = await searchParams;
+  const mes = sp.mes && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : null;
+  const semana = sp.semana && /^\d{4}-\d{2}-\d{2}$/.test(sp.semana) ? sp.semana : lunes();
   const centros = await db.select().from(hospitales).orderBy(hospitales.nombre);
   const deLaSemana = await db
     .select()
     .from(reportes)
-    .where(gte(reportes.semanaDesde, semana));
+    .where(
+      mes
+        ? and(gte(reportes.semanaDesde, `${mes}-01`), lte(reportes.semanaDesde, `${mes}-31`))
+        : gte(reportes.semanaDesde, semana),
+    );
 
   // Últimos 8 lunes para la tendencia
   const ochoSemanas = [...Array(8)].map((_, i) => {
@@ -89,7 +99,7 @@ export default async function Panel() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wider text-tinta3">
-              Semana del {semana.split("-").reverse().join("")}
+              {mes ? `Mes ${mes}` : `Desde la semana del ${semana.split("-").reverse().join("")}`}
             </div>
             <h1 className="mt-1 text-[28px] font-bold leading-tight">
               {centros.length - faltantes.length}
@@ -125,8 +135,26 @@ export default async function Panel() {
         <section className="mt-10">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-[13px] font-bold uppercase tracking-wider text-tinta2">
-              Reportes de esta semana
+              Reportes del periodo
             </h2>
+            {/* Selector de periodo: actualiza la tabla y las métricas */}
+            <form method="get" className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
+                  Semana
+                </label>
+                <input type="date" name="semana" defaultValue={mes ? "" : semana} disabled={!!mes} />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
+                  Mes
+                </label>
+                <input type="month" name="mes" defaultValue={mes ?? ""} className="h-9" />
+              </div>
+              <button className="h-9 rounded-chico bg-banda px-4 text-[13px] font-semibold text-white hover:brightness-110">
+                Ver periodo
+              </button>
+            </form>
             {/* Exportaciones con filtro */}
             <div className="flex flex-wrap items-end gap-2">
               <form action="/panel/reporte-pdf" method="get" className="flex flex-wrap items-end gap-2">
@@ -244,7 +272,7 @@ export default async function Panel() {
         {faltantes.length > 0 && (
           <section className="mt-8">
             <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-tinta2">
-              Sin reportar esta semana ({faltantes.length})
+              Sin reportar en el periodo ({faltantes.length})
             </h2>
             <div className="flex flex-wrap gap-2">
               {faltantes.map((c) => (
