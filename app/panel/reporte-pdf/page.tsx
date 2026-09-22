@@ -9,24 +9,26 @@ import BotonImprimir from "./BotonImprimir";
 export default async function ReportePdf({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string; hospital?: string; tipo?: string }>;
+  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string }>;
 }) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
   if (sesion.rol !== "admin") redirect("/consultas");
 
   const sp = await searchParams;
+  const mes = sp.mes && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : null;
   const semana = sp.semana ?? "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(semana)) {
+  if (!mes && !/^\d{4}-\d{2}-\d{2}$/.test(semana)) {
     return (
       <main className="p-10 text-[14px] text-tinta2">
-        Semana inválida. Vuelve al panel y selecciona una fecha.
+        Semana o mes inválido. Vuelve al panel y selecciona un periodo.
       </main>
     );
   }
   const hospitalFiltro = sp.hospital ?? "todos";
   const tipo = sp.tipo ?? "todos";
-  const d = await obtenerDatosReporte({ semana, hospital: hospitalFiltro, tipo });
+  const d = await obtenerDatosReporte({ semana, mes: mes ?? undefined, hospital: hospitalFiltro, tipo });
+  const qs = `&${mes ? `mes=${mes}` : `semana=${semana}`}`;
 
   return (
     <div className="min-h-dvh">
@@ -37,7 +39,7 @@ export default async function ReportePdf({
           </a>
           <div className="flex items-center gap-2">
             <a
-              href={`/panel/reporte-pdf/descarga?semana=${semana}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}&disp=inline`}
+              href={`/panel/reporte-pdf/descarga?${qs}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}&disp=inline`}
               target="_blank"
               rel="noopener"
               className="h-9 rounded-chico bg-banda px-4 text-[13px] font-semibold leading-9 text-white hover:bg-[#153a6e]"

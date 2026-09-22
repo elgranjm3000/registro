@@ -1,4 +1,4 @@
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { consultas, especialidades, hospitales, reportes } from "@/lib/db/schema";
 import { viernesDe } from "@/lib/fechas";
@@ -48,40 +48,53 @@ const ETIQUETA_TIPO: Record<string, string> = {
   hospitalizaciones: "Hospitalizaciones",
 };
 
-// Datos consolidados del reporte semanal (usado por la vista de impresión y el PDF)
+// Datos consolidados del reporte (usado por la vista de impresión y el PDF).
+// Acepta una semana (lunes) o un mes completo "AAAA-MM": suma todas las semanas cargadas del mes.
 export async function obtenerDatosReporte(opts: {
-  semana: string;
+  semana?: string;
+  mes?: string;
   hospital?: string;
   tipo?: string;
 }): Promise<DatosReporte> {
-  const semana = opts.semana;
+  const mes = opts.mes && /^\d{4}-\d{2}$/.test(opts.mes) ? opts.mes : null;
+  const semana = opts.semana ?? "";
   const hospitalFiltro = opts.hospital ?? "todos";
   const tipo: TipoReporte =
     opts.tipo === "consultas" || opts.tipo === "intervenciones" || opts.tipo === "hospitalizaciones"
       ? opts.tipo
       : "todos";
-  const semanaHasta = viernesDe(semana);
   const tiposIncluidos =
     tipo === "todos" ? ["consultas", "intervenciones", "hospitalizaciones"] : [tipo];
 
   const centros = await db.select().from(hospitales).orderBy(hospitales.nombre);
 
-  const condiciones: SQL[] = [eq(reportes.semanaDesde, semana)];
+  const periodo: SQL[] = mes
+    ? [gte(reportes.semanaDesde, `${mes}-01`), lte(reportes.semanaDesde, `${mes}-31`)]
+    : [eq(reportes.semanaDesde, semana)];
+  const condiciones: SQL[] = [...periodo];
   if (hospitalFiltro !== "todos") condiciones.push(eq(reportes.hospitalId, Number(hospitalFiltro)));
   const filas = await db
     .select({ r: reportes, h: hospitales })
     .from(reportes)
     .innerJoin(hospitales, eq(reportes.hospitalId, hospitales.id))
     .where(and(...condiciones));
-  const repPorHospital = new Map(filas.map((f) => [f.h.id, f.r]));
+  // Suma las semanas del periodo por hospital (para el reporte mensual)
+  const sumasPorHospital = new Map<number, Record<string, number>>();
+  for (const f of filas) {
+    const acc = sumasPorHospital.get(f.h.id) ?? {};
+    for (const tt of ["consultas", "intervenciones", "hospitalizaciones"])
+      for (const c of ["Militar", "Afiliado", "Pna"])
+        acc[`${tt}${c}`] = (acc[`${tt}${c}`] ?? 0) + Number(f.r[`${tt}${c}` as keyof typeof f.r]);
+    sumasPorHospital.set(f.h.id, acc);
+  }
 
-  const num = (r: typeof reportes.$inferSelect | undefined, tt: string, cat: string) =>
-    r ? Number(r[`${tt}${cat}` as keyof typeof r]) : 0;
+  const num = (r: Record<string, number> | undefined, tt: string, cat: string) =>
+    r ? (r[`${tt}${cat}`] ?? 0) : 0;
 
   const centrosFila: FilaCentro[] = (
     hospitalFiltro === "todos" ? centros.filter((c) => c.activo) : filas.map((f) => f.h)
   ).map((h) => {
-    const r = repPorHospital.get(h.id);
+    const r = sumasPorHospital.get(h.id);
     const sumaTipo = (tt: string) => num(r, tt, "Militar") + num(r, tt, "Afiliado") + num(r, tt, "Pna");
     return {
       id: h.id,
@@ -109,9 +122,9 @@ export async function obtenerDatosReporte(opts: {
   const porTipo = Object.fromEntries(
     (["consultas", "intervenciones", "hospitalizaciones"] as const).map((tt) => {
       const c = {
-        Militar: filas.reduce((a, f) => a + num(f.r, tt, "Militar"), 0),
-        Afiliado: filas.reduce((a, f) => a + num(f.r, tt, "Afiliado"), 0),
-        PNA: filas.reduce((a, f) => a + num(f.r, tt, "Pna"), 0),
+        Militar: filas.reduce((a, f) => a + Number(f.r[`${tt}Militar` as keyof typeof f.r]), 0),
+        Afiliado: filas.reduce((a, f) => a + Number(f.r[`${tt}Afiliado` as keyof typeof f.r]), 0),
+        PNA: filas.reduce((a, f) => a + Number(f.r[`${tt}Pna` as keyof typeof f.r]), 0),
       };
       return [tt, { ...c, total: c.Militar + c.Afiliado + c.PNA }];
     }),
@@ -119,7 +132,9 @@ export async function obtenerDatosReporte(opts: {
 
   // Detalle por especialidad × hospital × servicio
   const tiposDetalle = tipo === "todos" ? ["consultas", "intervenciones", "hospitalizaciones"] : [tipo];
-  const condicionesC: SQL[] = [eq(consultas.semanaDesde, semana)];
+  const condicionesC: SQL[] = mes
+    ? [gte(consultas.semanaDesde, `${mes}-01`), lte(consultas.semanaDesde, `${mes}-31`)]
+    : [eq(consultas.semanaDesde, semana)];
   if (hospitalFiltro !== "todos") condicionesC.push(eq(consultas.hospitalId, Number(hospitalFiltro)));
   const filasC = await db
     .select({ c: consultas, e: especialidades })
@@ -155,9 +170,18 @@ export async function obtenerDatosReporte(opts: {
       ? "TODOS LOS CENTROS"
       : (centros.find((c) => c.id === Number(hospitalFiltro))?.nombre ?? "").toUpperCase();
 
+  // Rango mostrado: primera semana cargada → viernes de la última cargada del periodo
+  const semanasOrdenadas = filas.map((f) => f.r.semanaDesde).sort();
+  const rangoDesde = semanasOrdenadas[0] ?? (mes ? `${mes}-01` : semana);
+  const rangoHasta = semanasOrdenadas.length
+    ? viernesDe(semanasOrdenadas[semanasOrdenadas.length - 1])
+    : mes
+      ? new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).toISOString().slice(0, 10)
+      : viernesDe(semana);
+
   return {
-    semana,
-    semanaHasta,
+    semana: rangoDesde,
+    semanaHasta: rangoHasta,
     hospitalFiltro,
     tipo,
     nombreHospital,

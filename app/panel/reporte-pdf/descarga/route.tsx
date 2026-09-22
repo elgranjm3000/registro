@@ -14,12 +14,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const sp = new URL(req.url).searchParams;
+  const mes = sp.get("mes") ?? "";
   const semana = sp.get("semana") ?? "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(semana))
-    return NextResponse.json({ error: "Semana inválida" }, { status: 400 });
+  const mesValido = /^\d{4}-\d{2}$/.test(mes);
+  if (!mesValido && !/^\d{4}-\d{2}-\d{2}$/.test(semana))
+    return NextResponse.json({ error: "Semana o mes inválido" }, { status: 400 });
 
   const datos = await obtenerDatosReporte({
     semana,
+    mes: mesValido ? mes : undefined,
     hospital: sp.get("hospital") ?? "todos",
     tipo: sp.get("tipo") ?? "todos",
   });
@@ -27,7 +30,7 @@ export async function GET(req: Request) {
   const buffer = await renderToBuffer(<DocumentoReporte d={datos} />);
 
   const inline = sp.get("disp") === "inline";
-  const nombre = `reporte-${datos.tipo}-${semana}.pdf`;
+  const nombre = `reporte-${datos.tipo}-${mesValido ? mes : semana}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

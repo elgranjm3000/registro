@@ -134,7 +134,13 @@ export default async function Panel() {
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
                     Semana
                   </label>
-                  <input type="date" name="semana" defaultValue={semana} required />
+                  <input type="date" name="semana" defaultValue={semana} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
+                    Mes (opcional)
+                  </label>
+                  <input type="month" name="mes" className="h-9" />
                 </div>
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
