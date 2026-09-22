@@ -8,6 +8,7 @@ import { accionAbrirReporte } from "@/lib/actions";
 import Graficos from "./Graficos";
 import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
 import CentrosAccesos from "./CentrosAccesos";
+import FiltrosPeriodo from "./FiltrosPeriodo";
 
 const lunes = () => {
   const d = new Date();
@@ -32,7 +33,7 @@ function fechaHora(f: string) {
 export default async function Panel({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string; mes?: string }>;
+  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string }>;
 }) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
@@ -40,6 +41,8 @@ export default async function Panel({
 
   const sp = await searchParams;
   const mes = sp.mes && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : null;
+  const hospitalFiltro = sp.hospital ?? "todos";
+  const tipoFiltro = sp.tipo ?? "todos";
   const semana = sp.semana && /^\d{4}-\d{2}-\d{2}$/.test(sp.semana) ? sp.semana : lunes();
   const centros = await db.select().from(hospitales).orderBy(hospitales.nombre);
   const deLaSemana = await db
@@ -74,11 +77,16 @@ export default async function Panel({
     .orderBy(desc(bitacora.fecha))
     .limit(12);
 
-  const reportados = new Map(deLaSemana.map((r) => [r.hospitalId, r]));
+  const delPeriodo =
+    hospitalFiltro === "todos"
+      ? deLaSemana
+      : deLaSemana.filter((r) => r.hospitalId === Number(hospitalFiltro));
+
+  const reportados = new Map(delPeriodo.map((r) => [r.hospitalId, r]));
   const faltantes = centros.filter((c) => !reportados.has(c.id));
 
   const suma = (k: keyof typeof reportes.$inferSelect) =>
-    deLaSemana
+    delPeriodo
       .filter((r) => r.estado !== "rechazado")
       .reduce((a, r) => a + (r[k] as number), 0);
 
@@ -137,68 +145,14 @@ export default async function Panel({
             <h2 className="text-[13px] font-bold uppercase tracking-wider text-tinta2">
               Reportes del periodo
             </h2>
-            {/* Selector de periodo: actualiza la tabla y las métricas */}
-            <form method="get" className="flex flex-wrap items-end gap-2">
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                  Semana
-                </label>
-                <input type="date" name="semana" defaultValue={mes ? "" : semana} disabled={!!mes} />
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                  Mes
-                </label>
-                <input type="month" name="mes" defaultValue={mes ?? ""} className="h-9" />
-              </div>
-              <button className="h-9 rounded-chico bg-banda px-4 text-[13px] font-semibold text-white hover:brightness-110">
-                Ver periodo
-              </button>
-            </form>
-            {/* Exportaciones con filtro */}
-            <div className="flex flex-wrap items-end gap-2">
-              <form action="/panel/reporte-pdf" method="get" className="flex flex-wrap items-end gap-2">
-                <div>
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                    Semana
-                  </label>
-                  <input type="date" name="semana" defaultValue={semana} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                    Mes (opcional)
-                  </label>
-                  <input type="month" name="mes" className="h-9" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                    Hospital
-                  </label>
-                  <select name="hospital" defaultValue="todos" className="h-9 max-w-56">
-                    <option value="todos">Todos los centros</option>
-                    {centros.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-                    Tipo
-                  </label>
-                  <select name="tipo" defaultValue="todos" className="h-9">
-                    <option value="todos">Todos</option>
-                    <option value="consultas">Consultas</option>
-                    <option value="intervenciones">Intervenciones Qx</option>
-                    <option value="hospitalizaciones">Hospitalizaciones</option>
-                  </select>
-                </div>
-                <button className="h-9 rounded-chico bg-fecha px-4 text-[13px] font-semibold text-white hover:brightness-110">
-                  🖨 Generar PDF
-                </button>
-              </form>
-            </div>
+            <FiltrosPeriodo
+              centros={centros}
+              semana={semana}
+              mes={mes}
+              hospital={hospitalFiltro}
+              tipo={tipoFiltro}
+            />
+
           </div>
           <div className="overflow-x-auto rounded-grande bg-white shadow-[var(--elev)]">
             <table className="w-full min-w-[720px] text-[13px]">
@@ -213,14 +167,14 @@ export default async function Panel({
                 </tr>
               </thead>
               <tbody>
-                {deLaSemana.length === 0 && (
+                {delPeriodo.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-5 py-6 text-center text-tinta3">
                       Ningún centro ha reportado esta semana todavía.
                     </td>
                   </tr>
                 )}
-                {deLaSemana.map((r) => {
+                {delPeriodo.map((r) => {
                   const h = centros.find((c) => c.id === r.hospitalId);
                   const t = (k: string) =>
                     Number(r[`${k}Militar` as keyof typeof r]) +
