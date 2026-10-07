@@ -51,7 +51,7 @@ export async function accionSalir() {
 }
 
 // ─── Semanas ───
-import { viernesDe } from "@/lib/fechas";
+import { lunesDe, viernesDe } from "@/lib/fechas";
 
 // ─── Reporte semanal: se recalcula a partir de las filas de servicios cargadas ───
 // Todo lo cargado entra directo (sin flujo de aprobación).
@@ -103,7 +103,8 @@ export async function accionGuardarCifras(_prev: EstadoForm, fd: FormData): Prom
   if (!sesion || sesion.rol !== "centro" || !sesion.hospitalId)
     return { error: "Sesión no válida." };
 
-  const semanaDesde = String(fd.get("semanaDesde") ?? "");
+  // Se puede indicar cualquier día: se normaliza al lunes de esa semana
+  const semanaDesde = lunesDe(String(fd.get("semanaDesde") ?? ""));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(semanaDesde)) return { error: "Indica la semana (lunes)." };
   const hospitalId: number = sesion.hospitalId;
 
@@ -286,7 +287,8 @@ async function importarConsultas(filas: Record<string, unknown>[], requiereCentr
       detalle.push(`⚠ Fila ${i + 2}: la especialidad "${nombreEsp}" no existe (agrégala en el panel).`);
       continue;
     }
-    const semanaDesde = String(celda["semana"] ?? celda["semanadesde"] ?? "").trim();
+    const semanaCruda = String(celda["semana"] ?? celda["semanadesde"] ?? "").trim();
+    const semanaDesde = /^\d{4}-\d{2}-\d{2}$/.test(semanaCruda) ? lunesDe(semanaCruda) : semanaCruda;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(semanaDesde)) {
       detalle.push(`⚠ Fila ${i + 2}: columna Semana inválida (usa AAAA-MM-DD del lunes).`);
       continue;
@@ -370,4 +372,27 @@ export async function accionRevisarReporte(fd: FormData) {
     })
     .where(eq(reportes.id, id));
   revalidatePath("/panel");
+}
+
+// El admin renombra un centro de salud
+export async function accionRenombrarHospital(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin." };
+  const id = Number(fd.get("hospitalId"));
+  const nombre = String(fd.get("nombre") ?? "").trim();
+  if (!id || nombre.length < 3) return { error: "Nombre inválido." };
+  await db.update(hospitales).set({ nombre }).where(eq(hospitales.id, id));
+  revalidatePath("/panel");
+  return { ok: "Centro renombrado." };
+}
+
+// El admin elimina TODA la información cargada (consultas y reportes) para empezar de cero.
+// No toca hospitales, usuarios ni especialidades.
+export async function accionPurgarDatos(): Promise<void> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return;
+  await db.delete(consultas);
+  await db.delete(reportes);
+  revalidatePath("/panel");
+  revalidatePath("/consultas");
 }

@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 import { desc, eq, gte, lte, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { bitacora, hospitales, reportes, usuarios } from "@/lib/db/schema";
+import { bitacora, especialidades, hospitales, reportes, usuarios } from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
 import Encabezado from "@/components/Encabezado";
 import { accionAbrirReporte } from "@/lib/actions";
 import Graficos from "./Graficos";
 import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
 import CentrosAccesos from "./CentrosAccesos";
+import PurgarDatos from "./PurgarDatos";
 import FiltrosPeriodo from "./FiltrosPeriodo";
 
 const lunes = () => {
@@ -33,7 +34,7 @@ function fechaHora(f: string) {
 export default async function Panel({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string }>;
+  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string; especialidad?: string }>;
 }) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
@@ -43,6 +44,8 @@ export default async function Panel({
   const mes = sp.mes && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : null;
   const hospitalFiltro = sp.hospital ?? "todos";
   const tipoFiltro = sp.tipo ?? "todos";
+  const especialidadFiltro = sp.especialidad ?? "";
+  const listaEsp = await db.select().from(especialidades).where(eq(especialidades.activa, true)).orderBy(especialidades.nombre);
   const semana = sp.semana && /^\d{4}-\d{2}-\d{2}$/.test(sp.semana) ? sp.semana : lunes();
   const centros = await db.select().from(hospitales).orderBy(hospitales.nombre);
   const deLaSemana = await db
@@ -131,6 +134,7 @@ export default async function Panel({
         <Graficos historicos={historicos} deLaSemana={[...deLaSemana]} />
 
         <ImportarConsultasAdmin />
+        <PurgarDatos />
 
         <section className="mt-6">
           <h2 className="text-[13px] font-bold uppercase tracking-wider text-tinta2">
@@ -147,10 +151,12 @@ export default async function Panel({
             </h2>
             <FiltrosPeriodo
               centros={centros}
+              especialidades={listaEsp}
               semana={semana}
               mes={mes}
               hospital={hospitalFiltro}
               tipo={tipoFiltro}
+              especialidad={especialidadFiltro}
             />
 
           </div>
@@ -187,6 +193,9 @@ export default async function Panel({
                         <div className="text-[11px] text-tinta3">{h?.ubicacion}</div>
                         {r.observacionCentro && (
                           <div className="text-[11px] italic text-tinta2">“{r.observacionCentro}”</div>
+                        )}
+                        {r.estado === "rechazado" && r.observacionAdmin && (
+                          <div className="text-[11px] text-fecha">Motivo: {r.observacionAdmin}</div>
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-center font-semibold">{t("consultas")}</td>

@@ -209,11 +209,9 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         <View style={s.firmaBloque} wrap={false}>
           <View style={s.firmaCaja}>
             <View style={s.firmaLinea} />
-            <Text style={s.firmaNombre}>
-              {d.hospitalFiltro === "todos"
-                ? "Jefe de la Sala Situacional / DIGESALUD"
-                : `Director del ${d.nombreHospital}`}
-            </Text>
+            {d.hospitalFiltro !== "todos" && (
+              <Text style={s.firmaNombre}>Director del {d.nombreHospital}</Text>
+            )}
             <Text style={s.firmaPie}>Firma y sello</Text>
           </View>
         </View>

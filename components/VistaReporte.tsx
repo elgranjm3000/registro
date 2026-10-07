@@ -75,11 +75,9 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
         <div className="mt-14 print:mt-6 flex justify-center">
           <div className="w-72 text-center">
             <div className="border-t border-tinta/70" />
-            <div className="mt-1 text-[12px] font-bold text-tinta">
-              {d.hospitalFiltro === "todos"
-                ? "Jefe de la Sala Situacional / DIGESALUD"
-                : `Director del ${d.nombreHospital}`}
-            </div>
+            {d.hospitalFiltro !== "todos" && (
+              <div className="mt-1 text-[12px] font-bold text-tinta">Director del {d.nombreHospital}</div>
+            )}
             <div className="text-[10px] text-tinta3">Firma y sello</div>
           </div>
         </div>

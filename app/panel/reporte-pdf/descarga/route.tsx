@@ -16,13 +16,18 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const mes = sp.get("mes") ?? "";
   const semana = sp.get("semana") ?? "";
+  const anio = sp.get("anio") ?? "";
+  const anioValido = /^\d{4}$/.test(anio);
   const mesValido = /^\d{4}-\d{2}$/.test(mes);
-  if (!mesValido && !/^\d{4}-\d{2}-\d{2}$/.test(semana))
-    return NextResponse.json({ error: "Semana o mes inválido" }, { status: 400 });
+  if (!mesValido && !anioValido && !/^\d{4}-\d{2}-\d{2}$/.test(semana))
+    return NextResponse.json({ error: "Semana, mes o año inválido" }, { status: 400 });
 
   const datos = await obtenerDatosReporte({
     semana,
     mes: mesValido ? mes : undefined,
+    mesHasta: sp.get("mesHasta") ?? undefined,
+    anio: anioValido ? anio : undefined,
+    especialidad: sp.get("especialidad") ?? undefined,
     hospital: sp.get("hospital") ?? "todos",
     tipo: sp.get("tipo") ?? "todos",
   });
@@ -30,7 +35,7 @@ export async function GET(req: Request) {
   const buffer = await renderToBuffer(<DocumentoReporte d={datos} />);
 
   const inline = sp.get("disp") === "inline";
-  const nombre = `reporte-${datos.tipo}-${mesValido ? mes : semana}.pdf`;
+  const nombre = `reporte-${datos.tipo}-${anioValido ? anio : mesValido ? mes : semana}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

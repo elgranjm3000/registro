@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Hospital, Usuario } from "@/lib/db/schema";
-import { accionCambiarClaveCentro, type EstadoForm } from "@/lib/actions";
+import { accionCambiarClaveCentro, accionRenombrarHospital, type EstadoForm } from "@/lib/actions";
 
 function FilaCentro({
   hospital,
@@ -15,12 +15,51 @@ function FilaCentro({
     accionCambiarClaveCentro,
     {},
   );
+  const [estadoNom, accionNom, pendienteNom] = useActionState<EstadoForm, FormData>(
+    accionRenombrarHospital,
+    {},
+  );
+  const [editando, setEditando] = useState(false);
 
   return (
     <tr className="border-b border-bordesuave last:border-0">
       <td className="px-5 py-2.5">
-        <div className="font-semibold">{hospital.nombre}</div>
-        <div className="text-[11px] text-tinta3">{hospital.ubicacion}</div>
+        {editando ? (
+          <form action={accionNom} className="flex items-center gap-2">
+            <input type="hidden" name="hospitalId" value={hospital.id} />
+            <input name="nombre" defaultValue={hospital.nombre} className="w-64 text-[12px]" required />
+            <button
+              disabled={pendienteNom}
+              className="h-7 rounded-chico bg-banda px-2.5 text-[11px] font-semibold text-white disabled:opacity-60"
+            >
+              Guardar
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditando(false)}
+              className="h-7 rounded-chico border border-borde px-2.5 text-[11px] font-semibold text-tinta2"
+            >
+              Cancelar
+            </button>
+          </form>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">{hospital.nombre}</span>
+              <button
+                type="button"
+                onClick={() => setEditando(true)}
+                title="Renombrar centro"
+                className="text-[11px] font-semibold text-banda hover:underline"
+              >
+                editar
+              </button>
+            </div>
+            <div className="text-[11px] text-tinta3">{hospital.ubicacion}</div>
+            {estadoNom.ok && <div className="text-[11px] font-semibold text-verifica">{estadoNom.ok}</div>}
+            {estadoNom.error && <div className="text-[11px] font-semibold text-fecha">{estadoNom.error}</div>}
+          </>
+        )}
       </td>
       <td className="px-2 py-2.5 text-[12px] text-tinta2">
         {usuario?.email ?? <span className="text-fecha">sin usuario</span>}

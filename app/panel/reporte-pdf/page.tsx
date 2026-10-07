@@ -9,7 +9,7 @@ import BotonImprimir from "./BotonImprimir";
 export default async function ReportePdf({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string }>;
+  searchParams: Promise<{ semana?: string; mes?: string; mesHasta?: string; anio?: string; especialidad?: string; hospital?: string; tipo?: string }>;
 }) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
@@ -17,8 +17,9 @@ export default async function ReportePdf({
 
   const sp = await searchParams;
   const mes = sp.mes && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : null;
+  const anio = sp.anio && /^\d{4}$/.test(sp.anio) ? sp.anio : null;
   const semana = sp.semana ?? "";
-  if (!mes && !/^\d{4}-\d{2}-\d{2}$/.test(semana)) {
+  if (!mes && !anio && !/^\d{4}-\d{2}-\d{2}$/.test(semana)) {
     return (
       <main className="p-10 text-[14px] text-tinta2">
         Semana o mes inválido. Vuelve al panel y selecciona un periodo.
@@ -27,8 +28,21 @@ export default async function ReportePdf({
   }
   const hospitalFiltro = sp.hospital ?? "todos";
   const tipo = sp.tipo ?? "todos";
-  const d = await obtenerDatosReporte({ semana, mes: mes ?? undefined, hospital: hospitalFiltro, tipo });
-  const qs = `&${mes ? `mes=${mes}` : `semana=${semana}`}`;
+  const d = await obtenerDatosReporte({
+    semana,
+    mes: mes ?? undefined,
+    mesHasta: sp.mesHasta,
+    anio: anio ?? undefined,
+    especialidad: sp.especialidad,
+    hospital: hospitalFiltro,
+    tipo,
+  });
+  const periodoQS = anio
+    ? `anio=${anio}`
+    : mes
+      ? `mes=${mes}${sp.mesHasta && /^\d{4}-\d{2}$/.test(sp.mesHasta) ? `&mesHasta=${sp.mesHasta}` : ""}`
+      : `semana=${semana}`;
+  const extraQS = `${periodoQS}${sp.especialidad ? `&especialidad=${sp.especialidad}` : ""}`;
 
   return (
     <div className="min-h-dvh">
@@ -39,7 +53,7 @@ export default async function ReportePdf({
           </a>
           <div className="flex items-center gap-2">
             <a
-              href={`/panel/reporte-pdf/descarga?${qs}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}&disp=inline`}
+              href={`/panel/reporte-pdf/descarga?${extraQS}&hospital=${encodeURIComponent(hospitalFiltro)}&tipo=${tipo}&disp=inline`}
               target="_blank"
               rel="noopener"
               className="h-9 rounded-chico bg-banda px-4 text-[13px] font-semibold leading-9 text-white hover:bg-[#153a6e]"

@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Consulta, Especialidad, Reporte } from "@/lib/db/schema";
 import { accionGuardarCifras, accionImportarConsultasCentro, type EstadoForm, type ResultadoExcel } from "@/lib/actions";
-import { lunesActual, viernesDe } from "@/lib/fechas";
+import { lunesActual, lunesDe, viernesDe } from "@/lib/fechas";
 
 const TIPOS = [
   { valor: "consultas", etiqueta: "Consultas" },
@@ -104,9 +104,15 @@ export default function FormularioCifras({
         <div className="flex flex-wrap items-end gap-4 border-b border-bordesuave px-4 py-4 sm:px-6">
           <div>
             <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-tinta2">
-              Semana desde (lunes)
+              Semana (elige cualquier día: se toma su semana)
             </label>
-            <input type="date" name="semanaDesde" value={semana} onChange={(e) => setSemana(e.target.value)} required />
+            <input
+              type="date"
+              name="semanaDesde"
+              value={semana}
+              onChange={(e) => e.target.value && setSemana(lunesDe(e.target.value))}
+              required
+            />
           </div>
           {rep && (
             <span
