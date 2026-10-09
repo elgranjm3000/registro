@@ -34,7 +34,7 @@ function fechaHora(f: string) {
 export default async function Panel({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string; especialidad?: string }>;
+  searchParams: Promise<{ semana?: string; mes?: string; hospital?: string; tipo?: string; especialidad?: string; categoria?: string }>;
 }) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
@@ -45,6 +45,7 @@ export default async function Panel({
   const hospitalFiltro = sp.hospital ?? "todos";
   const tipoFiltro = sp.tipo ?? "todos";
   const especialidadFiltro = sp.especialidad ?? "";
+  const categoriaFiltro = sp.categoria ?? "";
   const listaEsp = await db.select().from(especialidades).where(eq(especialidades.activa, true)).orderBy(especialidades.nombre);
   const semana = sp.semana && /^\d{4}-\d{2}-\d{2}$/.test(sp.semana) ? sp.semana : lunes();
   const centros = await db.select().from(hospitales).orderBy(hospitales.nombre);
@@ -157,6 +158,7 @@ export default async function Panel({
               hospital={hospitalFiltro}
               tipo={tipoFiltro}
               especialidad={especialidadFiltro}
+              categoria={categoriaFiltro}
             />
 
           </div>

@@ -27,6 +27,7 @@ export type DatosReporte = {
   tipo: TipoReporte;
   nombreHospital: string;
   tituloTipo: string;
+  categoria: string | null;
   tiposIncluidos: string[];
   centros: FilaCentro[];
   cat: { Militar: number; Afiliado: number; PNA: number };
@@ -56,6 +57,7 @@ export async function obtenerDatosReporte(opts: {
   mesHasta?: string;
   anio?: string;
   especialidad?: string;
+  categoria?: string;
   hospital?: string;
   tipo?: string;
 }): Promise<DatosReporte> {
@@ -67,6 +69,10 @@ export async function obtenerDatosReporte(opts: {
     : null;
   const anio = opts.anio && /^\d{4}$/.test(opts.anio) ? opts.anio : null;
   const especialidadId = opts.especialidad && /^\d+$/.test(opts.especialidad) ? Number(opts.especialidad) : null;
+  const categoriaKey =
+    opts.categoria === "militar" || opts.categoria === "afiliado" || opts.categoria === "pna"
+      ? (opts.categoria === "militar" ? "Militar" : opts.categoria === "afiliado" ? "Afiliado" : "PNA")
+      : null;
   const semana = opts.semana ?? "";
   const hospitalFiltro = opts.hospital ?? "todos";
   const tipo: TipoReporte =
@@ -258,6 +264,48 @@ export async function obtenerDatosReporte(opts: {
     );
   }
 
+  // Filtro por categoría: deja en cero las demás columnas (Militar / Afiliado / PNA)
+  let catOut = catFinal;
+  let porTipoOut = porTipoFinal;
+  let granTotalOut = granTotalFinal;
+  let centrosOut = centrosFinal;
+  let detalleOut = detalle;
+  if (categoriaKey) {
+    const sel = (x: { Militar: number; Afiliado: number; PNA: number }) =>
+      categoriaKey === "Militar" ? x.Militar : categoriaKey === "Afiliado" ? x.Afiliado : x.PNA;
+    const solo = (n: number) => ({
+      Militar: categoriaKey === "Militar" ? n : 0,
+      Afiliado: categoriaKey === "Afiliado" ? n : 0,
+      PNA: categoriaKey === "PNA" ? n : 0,
+    });
+
+    catOut = solo(sel(catFinal));
+    granTotalOut = sel(catFinal);
+    porTipoOut = Object.fromEntries(
+      (["consultas", "intervenciones", "hospitalizaciones"] as const).map((tt) => [
+        tt,
+        { ...solo(sel(porTipoFinal[tt])), total: sel(porTipoFinal[tt]) },
+      ]),
+    ) as DatosReporte["porTipo"];
+
+    detalleOut = detalle.map((x) => ({ ...x, ...solo(sel(x)) }));
+
+    // Por centro: suma del detalle ya filtrado (una sola categoría por servicio)
+    centrosOut = centrosFinal.map((f) => {
+      const filas = detalleOut.filter((x) => x.hospital === f.nombre);
+      const suma = (servicio: string) =>
+        filas.filter((x) => x.tipo === servicio).reduce((a, x) => a + sel(x), 0);
+      return {
+        ...f,
+        ...solo(filas.reduce((a, x) => a + sel(x), 0)),
+        consultas: suma("Consultas"),
+        intervenciones: suma("Intervenciones Qx"),
+        hospitalizaciones: suma("Hospitalizaciones"),
+        conDatos: filas.length > 0,
+      };
+    });
+  }
+
   return {
     semana: rangoDesde,
     semanaHasta: rangoHasta,
@@ -265,11 +313,12 @@ export async function obtenerDatosReporte(opts: {
     tipo,
     nombreHospital,
     tituloTipo: tipo === "todos" ? "ACTIVIDADES" : tipo.toUpperCase(),
+    categoria: categoriaKey,
     tiposIncluidos,
-    centros: centrosFinal,
-    cat: catFinal,
-    porTipo: porTipoFinal,
-    granTotal: granTotalFinal,
-    detalle,
+    centros: centrosOut,
+    cat: catOut,
+    porTipo: porTipoOut,
+    granTotal: granTotalOut,
+    detalle: detalleOut,
   };
 }

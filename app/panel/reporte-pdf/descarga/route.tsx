@@ -28,6 +28,7 @@ export async function GET(req: Request) {
     mesHasta: sp.get("mesHasta") ?? undefined,
     anio: anioValido ? anio : undefined,
     especialidad: sp.get("especialidad") ?? undefined,
+    categoria: sp.get("categoria") || undefined,
     hospital: sp.get("hospital") ?? "todos",
     tipo: sp.get("tipo") ?? "todos",
   });

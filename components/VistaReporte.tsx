@@ -30,6 +30,11 @@ export default function VistaReporte({ d }: { d: DatosReporte }) {
           <div className="mt-0.5 text-[13px] font-bold uppercase tracking-wide text-fecha">
             Desde el {formatoMilitar(d.semana)} hasta el {formatoMilitar(d.semanaHasta)}
           </div>
+          {d.categoria && (
+            <div className="mt-0.5 text-[12px] font-bold uppercase tracking-wide text-banda">
+              Categoría: {d.categoria}
+            </div>
+          )}
         </div>
 
         {/* Torta por actividad cuando el reporte abarca los tres servicios */}

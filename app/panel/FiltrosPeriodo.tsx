@@ -15,6 +15,7 @@ export default function FiltrosPeriodo({
   hospital,
   tipo,
   especialidad,
+  categoria,
 }: {
   centros: Centro[];
   especialidades: Esp[];
@@ -23,6 +24,7 @@ export default function FiltrosPeriodo({
   hospital: string;
   tipo: string;
   especialidad: string;
+  categoria: string;
 }) {
   const [modo, setModo] = useState<"semana" | "mes" | "anio">(mes ? "mes" : "semana");
 
@@ -124,6 +126,18 @@ export default function FiltrosPeriodo({
           <option value="consultas">Consultas</option>
           <option value="intervenciones">Intervenciones Qx</option>
           <option value="hospitalizaciones">Hospitalizaciones</option>
+        </select>
+      </div>
+
+      <div>
+        <label className={label} htmlFor="filtro-categoria">
+          Categoría
+        </label>
+        <select id="filtro-categoria" name="categoria" defaultValue={categoria} className={input}>
+          <option value="">Todas</option>
+          <option value="militar">Militares</option>
+          <option value="afiliado">Afiliados</option>
+          <option value="pna">PNA</option>
         </select>
       </div>
 

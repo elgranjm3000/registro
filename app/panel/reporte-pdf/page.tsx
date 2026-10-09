@@ -9,7 +9,7 @@ import BotonImprimir from "./BotonImprimir";
 export default async function ReportePdf({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string; mes?: string; mesHasta?: string; anio?: string; especialidad?: string; hospital?: string; tipo?: string }>;
+  searchParams: Promise<{ semana?: string; mes?: string; mesHasta?: string; anio?: string; especialidad?: string; categoria?: string; hospital?: string; tipo?: string }>;
 }) {
   const sesion = await getSesion();
   if (!sesion) redirect("/login");
@@ -34,6 +34,7 @@ export default async function ReportePdf({
     mesHasta: sp.mesHasta,
     anio: anio ?? undefined,
     especialidad: sp.especialidad,
+    categoria: sp.categoria || undefined,
     hospital: hospitalFiltro,
     tipo,
   });
@@ -42,7 +43,7 @@ export default async function ReportePdf({
     : mes
       ? `mes=${mes}${sp.mesHasta && /^\d{4}-\d{2}$/.test(sp.mesHasta) ? `&mesHasta=${sp.mesHasta}` : ""}`
       : `semana=${semana}`;
-  const extraQS = `${periodoQS}${sp.especialidad ? `&especialidad=${sp.especialidad}` : ""}`;
+  const extraQS = `${periodoQS}${sp.especialidad ? `&especialidad=${sp.especialidad}` : ""}${sp.categoria ? `&categoria=${sp.categoria}` : ""}`;
 
   return (
     <div className="min-h-dvh">

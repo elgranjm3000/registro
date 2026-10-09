@@ -154,6 +154,11 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
           <Text style={s.bandaFechas}>
             Desde el {formatoMilitar(d.semana)} hasta el {formatoMilitar(d.semanaHasta)}
           </Text>
+          {d.categoria && (
+            <Text style={{ fontSize: 10, fontWeight: 700, color: AZUL, marginTop: 1, textTransform: "uppercase" }}>
+              Categoría: {d.categoria}
+            </Text>
+          )}
         </View>
 
         <View style={s.panel}>
