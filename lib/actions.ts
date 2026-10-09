@@ -386,13 +386,34 @@ export async function accionRenombrarHospital(_prev: EstadoForm, fd: FormData): 
   return { ok: "Centro renombrado." };
 }
 
-// El admin elimina TODA la información cargada (consultas y reportes) para empezar de cero.
-// No toca hospitales, usuarios ni especialidades.
-export async function accionPurgarDatos(): Promise<void> {
+// El admin elimina cargas de forma selectiva: por centro (o todos) y rango de fechas.
+// Borra las filas de consultas y los reportes en ese rango. No toca hospitales, usuarios ni especialidades.
+export async function accionEliminarCargas(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
   const sesion = await getSesion();
-  if (!sesion || sesion.rol !== "admin") return;
-  await db.delete(consultas);
-  await db.delete(reportes);
+  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin." };
+  const hospital = String(fd.get("hospital") ?? "todos");
+  const desde = String(fd.get("desde") ?? "");
+  const hasta = String(fd.get("hasta") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta) || desde > hasta)
+    return { error: "Rango de fechas inválido." };
+
+  const hospitalId = hospital === "todos" ? null : Number(hospital);
+  const rangoC = hospitalId
+    ? and(gte(consultas.semanaDesde, desde), lte(consultas.semanaDesde, hasta), eq(consultas.hospitalId, hospitalId))
+    : and(gte(consultas.semanaDesde, desde), lte(consultas.semanaDesde, hasta));
+  const rangoR = hospitalId
+    ? and(gte(reportes.semanaDesde, desde), lte(reportes.semanaDesde, hasta), eq(reportes.hospitalId, hospitalId))
+    : and(gte(reportes.semanaDesde, desde), lte(reportes.semanaDesde, hasta));
+
+  const nC = await db.select({ id: consultas.id }).from(consultas).where(rangoC);
+  const nR = await db.select({ id: reportes.id }).from(reportes).where(rangoR);
+  if (nC.length === 0 && nR.length === 0) return { ok: "No había cargas en ese periodo." };
+
+  await db.delete(consultas).where(rangoC);
+  await db.delete(reportes).where(rangoR);
   revalidatePath("/panel");
   revalidatePath("/consultas");
+  return {
+    ok: `Eliminadas ${nC.length} fila(s) de servicios y ${nR.length} reporte(s) del periodo ${desde} → ${hasta}${hospitalId ? "" : " (todos los centros)"}.`,
+  };
 }

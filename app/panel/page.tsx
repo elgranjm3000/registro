@@ -8,7 +8,7 @@ import { accionAbrirReporte } from "@/lib/actions";
 import Graficos from "./Graficos";
 import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
 import CentrosAccesos from "./CentrosAccesos";
-import PurgarDatos from "./PurgarDatos";
+import EliminarCargas from "./EliminarCargas";
 import FiltrosPeriodo from "./FiltrosPeriodo";
 
 const lunes = () => {
@@ -134,7 +134,7 @@ export default async function Panel({
         <Graficos historicos={historicos} deLaSemana={[...deLaSemana]} />
 
         <ImportarConsultasAdmin />
-        <PurgarDatos />
+        <EliminarCargas centros={centros} semana={semana} />
 
         <section className="mt-6">
           <h2 className="text-[13px] font-bold uppercase tracking-wider text-tinta2">
