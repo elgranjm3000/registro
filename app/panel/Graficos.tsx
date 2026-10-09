@@ -12,6 +12,10 @@ const CATS = ["Militar", "Afiliado", "Pna"] as const;
 const sumar = (rs: Reporte[], k: string, c: string) =>
   rs.filter((r) => r.estado !== "rechazado").reduce((a, r) => a + (r[`${k}${c}` as keyof Reporte] as number), 0);
 
+
+// "MILITAR" → "Militar", "PNA" → "Pna" para buscar en el mapa de colores
+const claveColor = (nombre: string) => nombre.charAt(0) + nombre.slice(1).toLowerCase();
+
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const etiqueta = (iso: string) => `${Number(iso.slice(8, 10))}${MESES[Number(iso.slice(5, 7)) - 1]}`;
 
@@ -76,7 +80,7 @@ export default function Graficos({
                     <Cell
                       key={d.name}
                       fill={
-                        COLORES[d.name.toLowerCase() as keyof typeof COLORES] ?? "#8593a8"
+                        COLORES[claveColor(d.name) as keyof typeof COLORES] ?? "#8593a8"
                       }
                     />
                   ))}
@@ -94,7 +98,7 @@ export default function Graficos({
         </div>
         <div className="mt-3 flex justify-center gap-4">
           {torta.map((d) => {
-            const color = COLORES[d.name.toLowerCase() as keyof typeof COLORES] ?? "#8593a8";
+            const color = COLORES[claveColor(d.name) as keyof typeof COLORES] ?? "#8593a8";
             return (
               <span key={d.name} className="categoria" style={{ ["--cat" as string]: color, color }}>
                 {d.name} · {d.value}
