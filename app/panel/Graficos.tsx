@@ -6,7 +6,8 @@ import {
 } from "recharts";
 import type { Reporte } from "@/lib/db/schema";
 
-const COLORES = { Militar: "#4caf6d", Afiliado: "#2f9ec7", Pna: "#d64541" };
+// Colores variados para la torta por categoría
+const COLORES = { Militar: "#f59e0b", Afiliado: "#7c3aed", Pna: "#0ea5a4" };
 const CATS = ["Militar", "Afiliado", "Pna"] as const;
 const sumar = (rs: Reporte[], k: string, c: string) =>
   rs.filter((r) => r.estado !== "rechazado").reduce((a, r) => a + (r[`${k}${c}` as keyof Reporte] as number), 0);
