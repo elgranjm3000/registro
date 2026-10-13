@@ -10,6 +10,7 @@ import { ImportarConsultasAdmin, CrearEspecialidad } from "./ImportarConsultas";
 import CentrosAccesos from "./CentrosAccesos";
 import EliminarCargas from "./EliminarCargas";
 import FiltrosPeriodo from "./FiltrosPeriodo";
+import { ProveedorVivo, ChipVivo, FilaViva } from "./PanelVivo";
 
 const lunes = () => {
   const d = new Date();
@@ -86,6 +87,13 @@ export default async function Panel({
       ? deLaSemana
       : deLaSemana.filter((r) => r.hospitalId === Number(hospitalFiltro));
 
+  // Lo que el tablero vigila en vivo: identidad y marca de tiempo de cada carga del periodo.
+  const filasVivo = delPeriodo.map((r) => ({
+    id: r.id,
+    hospitalId: r.hospitalId,
+    actualizado: r.actualizadoEn,
+  }));
+
   const reportados = new Map(delPeriodo.map((r) => [r.hospitalId, r]));
   const faltantes = centros.filter((c) => !reportados.has(c.id));
 
@@ -104,7 +112,7 @@ export default async function Panel({
     : 0;
 
   return (
-    <div className="min-h-dvh">
+    <ProveedorVivo filas={filasVivo} className="min-h-dvh">
       <Encabezado subtitulo="Consolidado de la Red Sanitaria Militar" />
       <main className="mx-auto max-w-6xl px-5 py-8">
         {/* Foco de la vista: avance de reporte de la semana */}
@@ -118,10 +126,13 @@ export default async function Panel({
               <span className="text-tinta3"> / {centros.length} centros han reportado</span>
             </h1>
           </div>
-          <div className="flex flex-wrap gap-6">
-            <Metrica etiqueta="Centros que reportaron" valor={centros.length - faltantes.length} />
-            <Metrica etiqueta="Sin reportar" valor={faltantes.length} destaque={faltantes.length > 0} />
-            <Metrica etiqueta="Actividades totales" valor={totalSemana} />
+          <div className="flex flex-col items-end gap-2">
+            <ChipVivo />
+            <div className="flex flex-wrap gap-6">
+              <Metrica etiqueta="Centros que reportaron" valor={centros.length - faltantes.length} />
+              <Metrica etiqueta="Sin reportar" valor={faltantes.length} destaque={faltantes.length > 0} />
+              <Metrica etiqueta="Actividades totales" valor={totalSemana} />
+            </div>
           </div>
         </div>
 
@@ -189,7 +200,7 @@ export default async function Panel({
                     Number(r[`${k}Afiliado` as keyof typeof r]) +
                     Number(r[`${k}Pna` as keyof typeof r]);
                   return (
-                    <tr key={r.id} className="border-b border-bordesuave last:border-0">
+                    <FilaViva key={r.id} id={r.id}>
                       <td className="px-5 py-2.5">
                         <div className="font-semibold">{h?.nombre ?? "—"}</div>
                         <div className="text-[11px] text-tinta3">{h?.ubicacion}</div>
@@ -226,7 +237,7 @@ export default async function Panel({
                           </span>
                         )}
                       </td>
-                    </tr>
+                    </FilaViva>
                   );
                 })}
               </tbody>
@@ -307,7 +318,7 @@ export default async function Panel({
           </div>
         </section>
       </main>
-    </div>
+    </ProveedorVivo>
   );
 }
 
