@@ -1,4 +1,4 @@
-// Seed inicial: centros de la Red de Salud Militar + usuario admin.
+// Seed inicial: centros de la Red Sanitaria Militar + usuario admin.
 // Uso: node scripts/seed.mjs   (tras `npx drizzle-kit push`)
 import { createClient } from "@libsql/client";
 import bcrypt from "bcryptjs";

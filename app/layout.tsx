@@ -9,7 +9,7 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: "Sala Situacional · Red de Salud Militar",
+  title: "Sala Situacional · Red Sanitaria Militar",
   description: "Reporte semanal de actividades — DIGESALUD",
   viewport: {
     width: "device-width",

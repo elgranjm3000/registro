@@ -14,7 +14,7 @@ export default function Login() {
           </div>
           <h1 className="text-[22px] font-bold leading-tight">Sala Situacional</h1>
           <p className="mt-1 text-[13px] font-medium text-tinta3">
-            DIGESALUD · Red de Salud Militar
+            DIGESALUD · Red Sanitaria Militar
           </p>
         </div>
 

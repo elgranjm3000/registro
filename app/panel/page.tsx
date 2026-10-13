@@ -105,7 +105,7 @@ export default async function Panel({
 
   return (
     <div className="min-h-dvh">
-      <Encabezado subtitulo="Consolidado de la Red de Salud Militar" />
+      <Encabezado subtitulo="Consolidado de la Red Sanitaria Militar" />
       <main className="mx-auto max-w-6xl px-5 py-8">
         {/* Foco de la vista: avance de reporte de la semana */}
         <div className="flex flex-wrap items-end justify-between gap-4">

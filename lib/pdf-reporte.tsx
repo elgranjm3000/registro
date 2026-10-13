@@ -148,7 +148,7 @@ export function DocumentoReporte({ d }: { d: DatosReporte }) {
         <View style={s.banda}>
           <Text style={s.bandaTitulo}>
             {d.hospitalFiltro === "todos"
-              ? "Distribución de actividades en la Red de Salud Militar"
+              ? "Distribución de actividades en la Red Sanitaria Militar"
               : `Distribución de actividades en el ${d.nombreHospital}`}
           </Text>
           <Text style={s.bandaFechas}>
