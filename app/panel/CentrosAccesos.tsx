@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useCallback, useRef, useState } from "react";
 import type { Hospital, Usuario } from "@/lib/db/schema";
+import DialogoCentro, { type AccionCentro, type DatosCentro, type Destino } from "./DialogoCentro";
 import {
   accionCambiarClaveCentro,
   accionCrearHospital,
@@ -133,9 +134,13 @@ function AgregarCentro() {
 function FilaCentro({
   hospital,
   usuario,
+  conDatos,
+  onAccion,
 }: {
   hospital: Hospital;
   usuario: Usuario | undefined;
+  conDatos: boolean;
+  onAccion: (accion: AccionCentro) => void;
 }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(
     accionCambiarClaveCentro,
@@ -170,8 +175,15 @@ function FilaCentro({
           </form>
         ) : (
           <>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{hospital.nombre}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {!hospital.activo && (
+                <span className="rounded-full bg-control px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-tinta3">
+                  Inactivo
+                </span>
+              )}
+              <span className={`font-semibold ${hospital.activo ? "" : "text-tinta2"}`}>
+                {hospital.nombre}
+              </span>
               <button
                 type="button"
                 onClick={() => setEditando(true)}
@@ -180,6 +192,37 @@ function FilaCentro({
               >
                 editar
               </button>
+              <span aria-hidden className="text-tinta3">
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={() => onAccion(hospital.activo ? "desactivar" : "reactivar")}
+                title={
+                  hospital.activo
+                    ? "Sale del consolidado y bloquea su acceso. No borra nada."
+                    : "Vuelve al consolidado y habilita su acceso."
+                }
+                className="text-[11px] font-semibold text-tinta2 hover:underline"
+              >
+                {hospital.activo ? "dar de baja" : "reincorporar"}
+              </button>
+              {/* Eliminar solo existe cuando de verdad es la herramienta: sin historia que perder. */}
+              {!conDatos && (
+                <>
+                  <span aria-hidden className="text-tinta3">
+                    ·
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onAccion("eliminar")}
+                    title="Nunca debió existir. No tiene datos cargados."
+                    className="text-[11px] font-semibold text-fecha hover:underline"
+                  >
+                    eliminar
+                  </button>
+                </>
+              )}
             </div>
             <div className="text-[11px] text-tinta3">
               {ETIQUETA_TIPO[hospital.tipo] ?? ETIQUETA_TIPO.hospital}
@@ -225,18 +268,26 @@ function FilaCentro({
 export default function CentrosAccesos({
   centros,
   usuarios,
+  datos,
 }: {
   centros: Hospital[];
   usuarios: Usuario[];
+  datos: Record<number, DatosCentro>;
 }) {
+  // Un solo diálogo para toda la sección: la fila sólo dice a quién y qué.
+  const [destino, setDestino] = useState<Destino | null>(null);
+  const cerrar = useCallback(() => setDestino(null), []);
+
+  const vacio: DatosCentro = { reportes: 0, consultas: 0, periodo: "" };
+
   return (
     <section className="mt-10">
       <h2 className="mb-1 text-[13px] font-bold uppercase tracking-wider text-tinta2">
         Centros de salud y accesos
       </h2>
       <p className="mb-3 text-[13px] text-tinta2">
-        {centros.length} centros registrados. Agrega los que se incorporen a la red y cambia la
-        clave de acceso de cada uno cuando lo necesites (mínimo 6 caracteres).
+        {centros.length} centros registrados. Agrega los que se incorporen a la red, cambia la
+        clave de acceso de cada uno (mínimo 6 caracteres) y da de baja a los que salgan.
       </p>
       <AgregarCentro />
       <div className="mt-4 overflow-x-auto rounded-grande bg-white shadow-[var(--elev)]">
@@ -249,16 +300,26 @@ export default function CentrosAccesos({
             </tr>
           </thead>
           <tbody>
-            {centros.map((h) => (
-              <FilaCentro
-                key={h.id}
-                hospital={h}
-                usuario={usuarios.find((u) => u.hospitalId === h.id)}
-              />
-            ))}
+            {centros.map((h) => {
+              const u = usuarios.find((x) => x.hospitalId === h.id);
+              const d = datos[h.id] ?? vacio;
+              return (
+                <FilaCentro
+                  key={h.id}
+                  hospital={h}
+                  usuario={u}
+                  conDatos={d.reportes > 0 || d.consultas > 0}
+                  onAccion={(accion) =>
+                    setDestino({ hospital: h, usuario: u?.email ?? null, datos: d, accion })
+                  }
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {destino && <DialogoCentro destino={destino} onCerrar={cerrar} />}
     </section>
   );
 }

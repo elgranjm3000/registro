@@ -1,7 +1,14 @@
 import { redirect } from "next/navigation";
-import { desc, eq, gte, lte, and, ne } from "drizzle-orm";
+import { desc, eq, gte, lte, and, count, max, min, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { bitacora, especialidades, hospitales, reportes, usuarios } from "@/lib/db/schema";
+import {
+  bitacora,
+  consultas,
+  especialidades,
+  hospitales,
+  reportes,
+  usuarios,
+} from "@/lib/db/schema";
 import { getSesion } from "@/lib/auth";
 import Encabezado from "@/components/Encabezado";
 import { accionAbrirReporte } from "@/lib/actions";
@@ -31,6 +38,12 @@ function fechaHora(f: string) {
     hour12: true,
   });
 }
+
+// Rango de semanas de un centro, en corto: "ene 2025 – oct 2026".
+const mesAnio = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString("es-VE", { month: "short", year: "numeric" });
+
+type DatosCentro = { reportes: number; consultas: number; periodo: string };
 
 export default async function Panel({
   searchParams,
@@ -82,9 +95,46 @@ export default async function Panel({
     .orderBy(desc(bitacora.fecha))
     .limit(12);
 
+  // Qué tiene cargado cada centro. Con esto se decide —en el servidor y en el diálogo—
+  // si eliminar es una opción, y qué se avisa antes de dar de baja.
+  const conteoReportes = await db
+    .select({
+      hospitalId: reportes.hospitalId,
+      total: count(),
+      desde: min(reportes.semanaDesde),
+      hasta: max(reportes.semanaDesde),
+    })
+    .from(reportes)
+    .groupBy(reportes.hospitalId);
+  const conteoConsultas = await db
+    .select({ hospitalId: consultas.hospitalId, total: count() })
+    .from(consultas)
+    .groupBy(consultas.hospitalId);
+
+  const datosCentro: Record<number, DatosCentro> = {};
+  for (const r of conteoReportes)
+    datosCentro[r.hospitalId] = {
+      reportes: r.total,
+      consultas: 0,
+      periodo: r.desde && r.hasta ? `${mesAnio(r.desde)} – ${mesAnio(r.hasta)}` : "",
+    };
+  for (const c of conteoConsultas) {
+    // Un centro puede tener detalle sin agregado: se cuenta igual, o el borrado se ofrecería
+    // y después se negaría.
+    if (!datosCentro[c.hospitalId])
+      datosCentro[c.hospitalId] = { reportes: 0, consultas: c.total, periodo: "" };
+    else datosCentro[c.hospitalId].consultas = c.total;
+  }
+
+  // La red son los centros activos. El consolidado ya se arma así (lib/reporte-datos.ts);
+  // el panel tiene que decir lo mismo o el tablero y el PDF no coinciden.
+  const activos = centros.filter((c) => c.activo);
+  const idsActivos = new Set(activos.map((c) => c.id));
+
+  const deLaSemanaRed = deLaSemana.filter((r) => idsActivos.has(r.hospitalId));
   const delPeriodo =
     hospitalFiltro === "todos"
-      ? deLaSemana
+      ? deLaSemanaRed
       : deLaSemana.filter((r) => r.hospitalId === Number(hospitalFiltro));
 
   // Lo que el tablero vigila en vivo: identidad y marca de tiempo de cada carga del periodo.
@@ -95,7 +145,9 @@ export default async function Panel({
   }));
 
   const reportados = new Map(delPeriodo.map((r) => [r.hospitalId, r]));
-  const faltantes = centros.filter((c) => !reportados.has(c.id));
+  const faltantes = activos.filter((c) => !reportados.has(c.id));
+  // La tendencia también mira sólo a la red vigente, igual que el consolidado.
+  const historicosRed = historicos.filter((r) => idsActivos.has(r.hospitalId));
 
   const suma = (k: keyof typeof reportes.$inferSelect) =>
     delPeriodo
@@ -107,8 +159,8 @@ export default async function Panel({
     suma("intervencionesMilitar") + suma("intervencionesAfiliado") + suma("intervencionesPna") +
     suma("hospitalizacionesMilitar") + suma("hospitalizacionesAfiliado") + suma("hospitalizacionesPna");
 
-  const porcentaje = centros.length
-    ? Math.round(((centros.length - faltantes.length) / centros.length) * 100)
+  const porcentaje = activos.length
+    ? Math.round(((activos.length - faltantes.length) / activos.length) * 100)
     : 0;
 
   return (
@@ -122,14 +174,14 @@ export default async function Panel({
               {mes ? `Mes ${mes}` : `Desde la semana del ${semana.split("-").reverse().join("")}`}
             </div>
             <h1 className="mt-1 text-[28px] font-bold leading-tight">
-              {centros.length - faltantes.length}
-              <span className="text-tinta3"> / {centros.length} centros han reportado</span>
+              {activos.length - faltantes.length}
+              <span className="text-tinta3"> / {activos.length} centros han reportado</span>
             </h1>
           </div>
           <div className="flex flex-col items-end gap-2">
             <ChipVivo />
             <div className="flex flex-wrap gap-6">
-              <Metrica etiqueta="Centros que reportaron" valor={centros.length - faltantes.length} />
+              <Metrica etiqueta="Centros que reportaron" valor={activos.length - faltantes.length} />
               <Metrica etiqueta="Sin reportar" valor={faltantes.length} destaque={faltantes.length > 0} />
               <Metrica etiqueta="Actividades totales" valor={totalSemana} />
             </div>
@@ -143,7 +195,7 @@ export default async function Panel({
           />
         </div>
 
-        <Graficos historicos={historicos} deLaSemana={[...deLaSemana]} />
+        <Graficos historicos={historicosRed} deLaSemana={[...deLaSemanaRed]} />
 
         <ImportarConsultasAdmin />
         <EliminarCargas centros={centros} semana={semana} />
@@ -263,12 +315,12 @@ export default async function Panel({
           </section>
         )}
 
-        <CentrosAccesos centros={centros} usuarios={usuariosCentro} />
+        <CentrosAccesos centros={centros} usuarios={usuariosCentro} datos={datosCentro} />
 
-        {/* Bitácora de accesos */}
+        {/* Bitácora: ingresos y movimientos sobre centros */}
         <section className="mt-8">
           <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-tinta2">
-            Últimos ingresos
+            Últimos movimientos
           </h2>
           <div className="overflow-x-auto rounded-grande bg-white shadow-[var(--elev)]">
             <table className="w-full min-w-[560px] text-[13px]">
@@ -292,7 +344,7 @@ export default async function Panel({
                   const estilo =
                     b.accion === "login_exitoso"
                       ? "bg-verifica/10 text-verifica"
-                      : b.accion === "login_fallido"
+                      : b.accion === "login_fallido" || b.accion === "centro_eliminado"
                         ? "bg-fecha/10 text-fecha"
                         : "bg-control text-tinta2";
                   return (

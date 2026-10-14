@@ -115,7 +115,16 @@ export const bitacora = sqliteTable("bitacora", {
   email: text("email").notNull(),
   rol: text("rol").notNull().default(""),
   hospitalId: integer("hospital_id"),
-  accion: text("accion", { enum: ["login_exitoso", "login_fallido", "salir"] }).notNull(),
+  accion: text("accion", {
+    enum: [
+      "login_exitoso",
+      "login_fallido",
+      "salir",
+      "centro_desactivado",
+      "centro_reactivado",
+      "centro_eliminado",
+    ],
+  }).notNull(),
   ip: text("ip").notNull().default(""),
   navegador: text("navegador").notNull().default(""),
   fecha: text("fecha").notNull().$defaultFn(() => new Date().toISOString()),
