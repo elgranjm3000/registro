@@ -386,6 +386,56 @@ export async function accionRenombrarHospital(_prev: EstadoForm, fd: FormData): 
   return { ok: "Centro renombrado." };
 }
 
+// `key` es el id del centro recién creado: el formulario lo usa como key de React para
+// vaciarse tras un alta exitosa, así no queda una clave escrita en pantalla.
+export type EstadoCentro = EstadoForm & { key?: number };
+
+// El admin incorpora un centro a la red. Crea el centro Y su acceso: un centro sin
+// usuario no puede entrar a reportar, así que ambas cosas van juntas o no sirven.
+// El correo sigue la convención centroN@centro.mil.ve que ya usan los 34 existentes.
+export async function accionCrearHospital(_prev: EstadoCentro, fd: FormData): Promise<EstadoCentro> {
+  const sesion = await getSesion();
+  if (!sesion || sesion.rol !== "admin") return { error: "Solo el admin." };
+
+  const nombre = String(fd.get("nombre") ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+  const ubicacion = String(fd.get("ubicacion") ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+  const clave = String(fd.get("clave") ?? "");
+  const tipoCrudo = String(fd.get("tipo") ?? "");
+  const tipo: "hospital" | "ambulatorio" | "otro" = (["hospital", "ambulatorio", "otro"] as const).includes(
+    tipoCrudo as "hospital",
+  )
+    ? (tipoCrudo as "hospital" | "ambulatorio" | "otro")
+    : "hospital";
+
+  if (nombre.length < 3) return { error: "Escribe el nombre del centro." };
+  if (clave.length < 6) return { error: "La clave debe tener al menos 6 caracteres." };
+
+  // Sin esto, dos cargas del formulario dejan el mismo centro dos veces en "Sin reportar".
+  const existentes = await db.select().from(hospitales);
+  if (existentes.some((h) => normalizar(h.nombre) === normalizar(nombre)))
+    return { error: "Ya existe un centro con ese nombre." };
+
+  const [creado] = await db
+    .insert(hospitales)
+    .values({ nombre, tipo, ubicacion })
+    .returning({ id: hospitales.id });
+  if (!creado) return { error: "No se pudo crear el centro." };
+
+  const email = `centro${creado.id}@centro.mil.ve`;
+  const bcrypt = (await import("bcryptjs")).default;
+  await db.insert(usuarios).values({
+    email,
+    claveHash: bcrypt.hashSync(clave, 10),
+    nombre,
+    rol: "centro",
+    hospitalId: creado.id,
+  });
+
+  // El centro nuevo entra de inmediato al panel, a los filtros y a "Sin reportar".
+  revalidatePath("/panel");
+  return { ok: `Centro agregado. Entra como ${email}`, key: creado.id };
+}
+
 // El admin elimina cargas de forma selectiva: por centro (o todos) y rango de fechas.
 // Borra las filas de consultas y los reportes en ese rango. No toca hospitales, usuarios ni especialidades.
 export async function accionEliminarCargas(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
